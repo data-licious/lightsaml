@@ -2,11 +2,12 @@
 
 namespace AerialShip\LightSaml\Model\XmlDSig;
 
-use AerialShip\LightSaml\Error\SecurityException;
+use AerialShip\LightSaml\Error\LightSamlSecurityException;
+use AerialShip\LightSaml\Meta\DeserializationContext;
+use AerialShip\LightSaml\Meta\SerializationContext;
 use AerialShip\LightSaml\Security\KeyHelper;
 
-
-class SignatureStringValidator extends Signature implements SignatureValidatorInterface
+class SignatureStringValidator extends SignatureValidator
 {
     /** @var string */
     protected $signature;
@@ -18,8 +19,12 @@ class SignatureStringValidator extends Signature implements SignatureValidatorIn
     protected $data;
 
 
-
-    public function __construct($signature, $algorithm, $data)
+    /**
+     * @param string|null $signature
+     * @param string|null $algorithm
+     * @param string|null $data
+     */
+    public function __construct($signature = null, $algorithm = null, $data = null)
     {
         $this->signature = $signature;
         $this->algorithm = $algorithm;
@@ -33,7 +38,7 @@ class SignatureStringValidator extends Signature implements SignatureValidatorIn
      */
     public function setAlgorithm($algorithm)
     {
-        $this->algorithm = $algorithm;
+        $this->algorithm = (string)$algorithm;
     }
 
     /**
@@ -49,7 +54,7 @@ class SignatureStringValidator extends Signature implements SignatureValidatorIn
      */
     public function setData($data)
     {
-        $this->data = $data;
+        $this->data = (string)$data;
     }
 
     /**
@@ -65,7 +70,7 @@ class SignatureStringValidator extends Signature implements SignatureValidatorIn
      */
     public function setSignature($signature)
     {
-        $this->signature = $signature;
+        $this->signature = (string)$signature;
     }
 
     /**
@@ -78,14 +83,10 @@ class SignatureStringValidator extends Signature implements SignatureValidatorIn
 
 
 
-
-
-
-
     /**
      * @param \XMLSecurityKey $key
      * @return bool True if validated, False if validation was not performed
-     * @throws \AerialShip\LightSaml\Error\SecurityException If validation fails
+     * @throws \AerialShip\LightSaml\Error\LightSamlSecurityException If validation fails
      */
     public function validate(\XMLSecurityKey $key)
     {
@@ -94,7 +95,7 @@ class SignatureStringValidator extends Signature implements SignatureValidatorIn
         }
 
         if ($key->type !== \XMLSecurityKey::RSA_SHA1) {
-            throw new SecurityException('Invalid key type for validating signature on query string');
+            throw new LightSamlSecurityException('Invalid key type for validating signature on query string');
         }
         if ($key->type !== $this->getAlgorithm()) {
             $key = KeyHelper::castKey($key, $this->getAlgorithm());
@@ -102,51 +103,33 @@ class SignatureStringValidator extends Signature implements SignatureValidatorIn
 
         $signature = base64_decode($this->getSignature());
         if (!$key->verifySignature($this->getData(), $signature)) {
-            throw new SecurityException('Unable to validate signature on query string');
+            throw new LightSamlSecurityException('Unable to validate signature on query string');
         }
 
         return true;
     }
 
-
+    /**
+     * @param \DOMNode $parent
+     * @param SerializationContext $context
+     * @throws \LogicException
+     * @return void
+     */
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        throw new \LogicException('SignatureValidator can not be serialized');
+    }
 
     /**
-     * @param \XMLSecurityKey[] $keys
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
      * @throws \LogicException
-     * @throws \InvalidArgumentException If some element of $keys array is not \XMLSecurityKey
-     * @throws \AerialShip\LightSaml\Error\SecurityException If validation fails
-     * @throws \Exception
-     * @throws null
-     * @return bool True if validated, False if validation was not performed
+     * @return void
      */
-    public function validateMulti(array $keys)
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
     {
-        $lastException = null;
-
-        foreach ($keys as $key) {
-            if (!$key instanceof \XMLSecurityKey) {
-                throw new \InvalidArgumentException('Expected XMLSecurityKey but got '.get_class($key));
-            }
-
-            try {
-                $result = $this->validate($key);
-
-                if ($result === false) {
-                    return false;
-                }
-
-                return true;
-
-            } catch (SecurityException $ex) {
-                $lastException = $ex;
-            }
-        }
-
-        if ($lastException) {
-            throw $lastException;
-        } else {
-            throw new \LogicException('Should not get here???');
-        }
+        throw new \LogicException('SignatureStringValidator can not be serialized');
     }
+
 
 }

@@ -9,7 +9,8 @@ class SerializationContext
     protected $document;
 
 
-    function __construct(\DOMDocument $document = null) {
+    public function __construct(\DOMDocument $document = null)
+    {
         $this->document = $document ? $document : new \DOMDocument();
     }
 
@@ -17,14 +18,16 @@ class SerializationContext
     /**
      * @param \DOMDocument $document
      */
-    public function setDocument($document) {
+    public function setDocument(\DOMDocument $document)
+    {
         $this->document = $document;
     }
 
     /**
      * @return \DOMDocument
      */
-    public function getDocument() {
+    public function getDocument()
+    {
         return $this->document;
     }
 

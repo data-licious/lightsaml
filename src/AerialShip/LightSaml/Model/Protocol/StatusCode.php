@@ -2,22 +2,18 @@
 
 namespace AerialShip\LightSaml\Model\Protocol;
 
-use AerialShip\LightSaml\Error\InvalidXmlException;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Meta\XmlChildrenLoaderTrait;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
+use AerialShip\LightSaml\SamlConstants;
 
-class StatusCode implements GetXmlInterface, LoadFromXmlInterface
+class StatusCode extends AbstractSamlModel
 {
-    use XmlChildrenLoaderTrait;
-
     /** @var  string */
     protected $value;
 
     /** @var  StatusCode|null */
-    protected $child;
+    protected $statusCode;
 
 
     /**
@@ -31,82 +27,67 @@ class StatusCode implements GetXmlInterface, LoadFromXmlInterface
     /**
      * @param string $value
      */
-    public function setValue($value) {
-        $this->value = $value;
+    public function setValue($value)
+    {
+        $this->value = (string)$value;
     }
 
     /**
      * @return string
      */
-    public function getValue() {
+    public function getValue()
+    {
         return $this->value;
     }
 
     /**
-     * @param \AerialShip\LightSaml\Model\Protocol\StatusCode|null $child
+     * @param \AerialShip\LightSaml\Model\Protocol\StatusCode|null $statusCode
+     * @return $this|StatusCode
      */
-    public function setChild($child) {
-        $this->child = $child;
+    public function setStatusCode(StatusCode $statusCode)
+    {
+        $this->statusCode = $statusCode;
+        return $this;
     }
 
     /**
      * @return \AerialShip\LightSaml\Model\Protocol\StatusCode|null
      */
-    public function getChild() {
-        return $this->child;
+    public function getStatusCode()
+    {
+        return $this->statusCode;
     }
 
-
-
-    protected function prepareForXml() {
-        if (!$this->getValue()) {
-            throw new InvalidXmlException('StatusCode value not set');
-        }
-    }
 
 
     /**
      * @param \DOMNode $parent
      * @param SerializationContext $context
-     * @return \DOMElement
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context) {
-        $this->prepareForXml();
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        $result = $this->createElement('samlp:StatusCode', SamlConstants::NS_PROTOCOL, $parent, $context);
 
-        $result = $context->getDocument()->createElementNS(Protocol::SAML2, 'samlp:StatusCode');
-        $result->setAttribute('Value', $this->getValue());
+        $this->attributesToXml(array('Value'), $result);
 
-        if ($this->getChild()) {
-            $this->getChild()->getXml($result, $context);
-        }
-
-        return $result;
+        $this->singleElementsToXml(array('StatusCode'), $result, $context);
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
      * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        if ($xml->localName != 'StatusCode' || $xml->namespaceURI != Protocol::SAML2) {
-            throw new InvalidXmlException('Expected StatusCode element but got '.$xml->localName);
-        }
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'StatusCode', SamlConstants::NS_PROTOCOL);
 
-        if (!$xml->hasAttribute('Value')) {
-            throw new InvalidXmlException('Required attribute StatusCode Value missing');
-        }
-        $this->setValue($xml->getAttribute('Value'));
+        $this->attributesFromXml($node, array('Value'));
 
-        $this->iterateChildrenElements($xml, function(\DOMElement $node) {
-            if ($node->localName == 'StatusCode' && $node->namespaceURI == Protocol::SAML2) {
-                $this->setChild(new StatusCode());
-                $this->getChild()->loadFromXml($node);
-            } else {
-                throw new InvalidXmlException('Unknown element '.$node->localName);
-            }
-        });
+        $this->singleElementsFromXml($node, $context, array(
+            'StatusCode' => array('samlp' => 'AerialShip\LightSaml\Model\Protocol\StatusCode')
+        ));
     }
-
 
 }

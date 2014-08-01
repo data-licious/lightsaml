@@ -2,169 +2,302 @@
 
 namespace AerialShip\LightSaml\Model\Protocol;
 
-use AerialShip\LightSaml\Error\InvalidRequestException;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Model\XmlDSig\SignatureXmlValidator;
-use AerialShip\LightSaml\NameIDPolicy;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\Assertion\Conditions;
+use AerialShip\LightSaml\Model\Assertion\Subject;
+use AerialShip\LightSaml\SamlConstants;
 
-
-class AuthnRequest extends AbstractRequest
+class AuthnRequest extends RequestAbstract
 {
+    //region Attributes
 
-    /** @var string */
+    /** @var bool|null */
+    protected $forceAuthn;
+
+    /** @var bool|null */
+    protected $isPassive;
+
+    /** @var int|null */
+    protected $assertionConsumerServiceIndex;
+
+    /** @var string|null */
     protected $assertionConsumerServiceURL;
 
-    /** @var string */
+    /** @var int|null */
+    protected $attributeConsumingServiceIndex;
+
+    /** @var string|null */
     protected $protocolBinding;
 
+    /** @var string|null */
+    protected $providerName;
 
-    /** @var string */
-    protected $nameIdPolicyFormat;
-
-    /** @var bool */
-    protected $nameIdPolicyAllowCreate = true;
+    //endregion
 
 
+    //region Elements
 
-    function getXmlNodeLocalName() {
-        return 'AuthnRequest';
-    }
+    /** @var Conditions|null */
+    protected $conditions;
 
-    function getXmlNodeNamespace() {
-        return Protocol::SAML2;
-    }
+    /** @var NameIDPolicy|null */
+    protected $nameIDPolicy;
 
-
-    /**
-     * @param string $assertionConsumerServiceURL
-     */
-    public function setAssertionConsumerServiceURL($assertionConsumerServiceURL) {
-        $this->assertionConsumerServiceURL = $assertionConsumerServiceURL;
-    }
-
-    /**
-     * @return string
-     */
-    public function getAssertionConsumerServiceURL() {
-        return $this->assertionConsumerServiceURL;
-    }
-
+    /** @var Subject|null */
+    protected $subject;
 
 
 
     /**
-     * @param bool $nameIdPolicyAllowCreate
+     * @param \AerialShip\LightSaml\Model\Assertion\Subject|null $subject
+     * @return $this|AuthnRequest
      */
-    public function setNameIdPolicyAllowCreate($nameIdPolicyAllowCreate) {
-        $this->nameIdPolicyAllowCreate = (bool)$nameIdPolicyAllowCreate;
+    public function setSubject(Subject $subject)
+    {
+        $this->subject = $subject;
+        return $this;
     }
 
     /**
-     * @return bool
+     * @return \AerialShip\LightSaml\Model\Assertion\Subject|null
      */
-    public function getNameIdPolicyAllowCreate() {
-        return $this->nameIdPolicyAllowCreate;
+    public function getSubject()
+    {
+        return $this->subject;
     }
 
     /**
-     * @param string $nameIdPolicyFormat
-     * @throws \InvalidArgumentException
+     * @param null|string $providerName
+     * @return $this|AuthnRequest
      */
-    public function setNameIdPolicyFormat($nameIdPolicyFormat) {
-        if (!NameIDPolicy::isValid($nameIdPolicyFormat)) {
-            throw new \InvalidArgumentException('Invalid NameIDPolicy');
-        }
-        $this->nameIdPolicyFormat = $nameIdPolicyFormat;
+    public function setProviderName($providerName)
+    {
+        $this->providerName = (string)$providerName;
+        return $this;
     }
 
     /**
-     * @return string
+     * @return null|string
      */
-    public function getNameIdPolicyFormat() {
-        return $this->nameIdPolicyFormat;
+    public function getProviderName()
+    {
+        return $this->providerName;
     }
 
     /**
-     * @param string $protocolBinding
+     * @param null|string $protocolBinding
+     * @return $this|AuthnRequest
      */
-    public function setProtocolBinding($protocolBinding) {
-        $this->protocolBinding = $protocolBinding;
+    public function setProtocolBinding($protocolBinding)
+    {
+        $this->protocolBinding = (string)$protocolBinding;
+        return $this;
     }
 
     /**
-     * @return string
+     * @return null|string
      */
-    public function getProtocolBinding() {
+    public function getProtocolBinding()
+    {
         return $this->protocolBinding;
     }
 
-
-
-
-
-    protected function prepareForXml() {
-        parent::prepareForXml();
-        if (!$this->getAssertionConsumerServiceURL()) {
-            throw new InvalidRequestException('AuthRequest AssertionConsumerServiceURL not set');
-        }
-        if (!$this->getProtocolBinding()) {
-            throw new InvalidRequestException('AuthnRequest ProtocolBinding not set');
-        }
-        if (!NameIDPolicy::isValid($this->getNameIdPolicyFormat())) {
-            throw new InvalidRequestException('AuthnRequest NameIDPolicy Format not set');
-        }
+    /**
+     * @param \AerialShip\LightSaml\Model\Protocol\NameIDPolicy|null $nameIDPolicy
+     * @return $this|AuthnRequest
+     */
+    public function setNameIDPolicy(NameIDPolicy $nameIDPolicy)
+    {
+        $this->nameIDPolicy = $nameIDPolicy;
+        return $this;
     }
 
+    /**
+     * @return \AerialShip\LightSaml\Model\Protocol\NameIDPolicy|null
+     */
+    public function getNameIDPolicy()
+    {
+        return $this->nameIDPolicy;
+    }
 
+    /**
+     * @param bool|null $isPassive
+     * @return $this|AuthnRequest
+     */
+    public function setIsPassive($isPassive)
+    {
+        $this->isPassive = strcasecmp($isPassive, 'true') == 0 || $isPassive === true || $isPassive == 1;
+        return $this;
+    }
+
+    /**
+     * @return bool|null
+     */
+    public function getIsPassive()
+    {
+        return $this->isPassive;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getIsPassiveString()
+    {
+        if ($this->isPassive === null) {
+            return null;
+        }
+        return $this->isPassive ? 'true' : 'false';
+    }
+
+    /**
+     * @param bool|null $forceAuthn
+     * @return $this|AuthnRequest
+     */
+    public function setForceAuthn($forceAuthn)
+    {
+        $this->forceAuthn = strcasecmp($forceAuthn, 'true') == 0 || $forceAuthn === true || $forceAuthn == 1;
+        return $this;
+    }
+
+    /**
+     * @return bool|null
+     */
+    public function getForceAuthn()
+    {
+        return $this->forceAuthn;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getForceAuthnString()
+    {
+        if ($this->forceAuthn === null) {
+            return null;
+        }
+        return $this->forceAuthn ? 'true' : 'false';
+    }
+
+    /**
+     * @param \AerialShip\LightSaml\Model\Assertion\Conditions|null $conditions
+     * @return $this|AuthnRequest
+     */
+    public function setConditions($conditions)
+    {
+        $this->conditions = $conditions;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\Conditions|null
+     */
+    public function getConditions()
+    {
+        return $this->conditions;
+    }
+
+    /**
+     * @param null|int $attributeConsumingServiceIndex
+     * @return $this|AuthnRequest
+     */
+    public function setAttributeConsumingServiceIndex($attributeConsumingServiceIndex)
+    {
+        $this->attributeConsumingServiceIndex = $attributeConsumingServiceIndex !== null
+            ? intval(((string)$attributeConsumingServiceIndex))
+            : null;
+
+        return $this;
+    }
+
+    /**
+     * @return null|int
+     */
+    public function getAttributeConsumingServiceIndex()
+    {
+        return $this->attributeConsumingServiceIndex;
+    }
+
+    /**
+     * @param null|string $assertionConsumerServiceURL
+     * @return $this|AuthnRequest
+     */
+    public function setAssertionConsumerServiceURL($assertionConsumerServiceURL)
+    {
+        $this->assertionConsumerServiceURL = (string)$assertionConsumerServiceURL;
+        return $this;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getAssertionConsumerServiceURL()
+    {
+        return $this->assertionConsumerServiceURL;
+    }
+
+    /**
+     * @param null|int $assertionConsumerServiceIndex
+     * @return $this|AuthnRequest
+     */
+    public function setAssertionConsumerServiceIndex($assertionConsumerServiceIndex)
+    {
+        $this->assertionConsumerServiceIndex = $assertionConsumerServiceIndex !== null
+            ? intval((string)$assertionConsumerServiceIndex)
+            : null;
+
+        return $this;
+    }
+
+    /**
+     * @return null|int
+     */
+    public function getAssertionConsumerServiceIndex()
+    {
+        return $this->assertionConsumerServiceIndex;
+    }
+
+    //endregion
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
+     * @param SerializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context) {
-        $result = parent::getXml($parent, $context);
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        $result = $this->createElement('AuthnRequest', SamlConstants::NS_PROTOCOL, $parent, $context);
 
-        $result->setAttribute('AssertionConsumerServiceURL', $this->getAssertionConsumerServiceURL());
-        $result->setAttribute('ProtocolBinding', $this->getProtocolBinding());
+        parent::serialize($result, $context);
 
-        $nameIDPolicyNode = $context->getDocument()->createElementNS(Protocol::SAML2, 'samlp:NameIDPolicy');
-        $result->appendChild($nameIDPolicyNode);
-        $nameIDPolicyNode->setAttribute('Format', $this->getNameIdPolicyFormat());
-        $nameIDPolicyNode->setAttribute('AllowCreate', $this->getNameIdPolicyAllowCreate() ? 'true' : 'false');
+        $this->attributesToXml(array(
+                'ForceAuthn', 'IsPassive', 'ProtocolBinding', 'AssertionConsumerServiceIndex',
+                'AssertionConsumerServiceURL', 'AttributeConsumingServiceIndex', 'ProviderName'
+            ), $result);
 
-        return $result;
+        $this->singleElementsToXml(array('Subject', 'NameIDPolicy', 'Conditions'), $result, $context);
     }
 
-
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        parent::loadFromXml($xml);
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'AuthnRequest', SamlConstants::NS_PROTOCOL);
 
-        $this->checkRequiredAttributes($xml, array('AssertionConsumerServiceURL', 'ProtocolBinding'));
-        $this->setAssertionConsumerServiceURL($xml->getAttribute('AssertionConsumerServiceURL'));
-        $this->setProtocolBinding($xml->getAttribute('ProtocolBinding'));
+        parent::deserialize($node, $context);
 
-        $signatureNode = null;
+        $this->attributesFromXml($node, array(
+            'ForceAuthn', 'IsPassive', 'ProtocolBinding', 'AssertionConsumerServiceIndex',
+            'AssertionConsumerServiceURL', 'AttributeConsumingServiceIndex', 'ProviderName'
+        ));
 
-        $this->iterateChildrenElements($xml, function(\DOMElement $node) use (&$signatureNode) {
-            if ($node->localName == 'NameIDPolicy' && $node->namespaceURI == Protocol::SAML2) {
-                $this->checkRequiredAttributes($node, array('Format', 'AllowCreate'));
-                $this->setNameIdPolicyFormat($node->getAttribute('Format'));
-                $this->setNameIdPolicyAllowCreate($node->getAttribute('AllowCreate') == 'true');
-            } else if ($node->localName == 'Signature' && $node->namespaceURI == Protocol::NS_XMLDSIG) {
-                $signatureNode = $node;
-            }
-        });
-
-        if ($signatureNode) {
-            $signature = new SignatureXmlValidator();
-            $signature->loadFromXml($signatureNode);
-            $this->setSignature($signature);
-        }
+        $this->singleElementsFromXml($node, $context, array(
+            'Subject' => array('saml', 'AerialShip\LightSaml\Model\Assertion\Subject'),
+            'NameIDPolicy' => array('samlp', 'AerialShip\LightSaml\Model\Protocol\NameIDPolicy'),
+            'Conditions' => array('saml', 'AerialShip\LightSaml\Model\Assertion\Conditions'),
+        ));
     }
 
 }

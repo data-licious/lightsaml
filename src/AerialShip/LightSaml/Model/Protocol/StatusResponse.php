@@ -2,16 +2,37 @@
 
 namespace AerialShip\LightSaml\Model\Protocol;
 
-use AerialShip\LightSaml\Error\InvalidResponseException;
-use AerialShip\LightSaml\Error\InvalidXmlException;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
+use AerialShip\LightSaml\Model\Assertion\Issuer;
+use AerialShip\LightSaml\Model\XmlDSig\Signature;
 
-
-abstract class StatusResponse extends Message
+abstract class StatusResponse extends AbstractSamlModel
 {
+    /** @var  string */
+    protected $id;
+
     /** @var string */
     protected $inResponseTo;
+
+    /** @var  string */
+    protected $version;
+
+    /** @var  int */
+    protected $issueInstant;
+
+    /** @var  string|null */
+    protected $destination;
+
+    /** @var  string|null */
+    protected $consent;
+
+    /** @var  Issuer|null */
+    protected $issuer;
+
+    /** @var  Signature|null */
+    protected $signature;
 
     /** @var Status */
     protected $status;
@@ -36,7 +57,7 @@ abstract class StatusResponse extends Message
     /**
      * @param \AerialShip\LightSaml\Model\Protocol\Status $status
      */
-    public function setStatus($status) {
+    public function setStatus(Status $status) {
         $this->status = $status;
     }
 
@@ -49,51 +70,32 @@ abstract class StatusResponse extends Message
 
 
 
-
-
-    protected function prepareForXml() {
-        parent::prepareForXml();
-        if (!$this->getStatus()) {
-            throw new InvalidResponseException('Missing Status');
-        }
-    }
-
-
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
+     * @param SerializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context) {
-        $result = parent::getXml($parent, $context);
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        $this->attributesToXml(array('ID', 'InResponseTo', 'Version', 'IssueInstant', 'Destination', 'Consent'), $parent);
 
-        if ($this->getInResponseTo()) {
-            $result->setAttribute('InResponseTo', $this->getInResponseTo());
-        }
-        $this->getStatus()->getXml($result, $context);
-        return $result;
+        $this->singleElementsToXml(array('Issuer', 'Signature', 'Status'), $parent, $context);
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        parent::loadFromXml($xml);
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->attributesFromXml($node, array('ID', 'InResponseTo', 'Version', 'IssueInstant', 'Destination', 'Consent'));
 
-        if ($xml->hasAttribute('InResponseTo')) {
-            $this->setInResponseTo($xml->getAttribute('InResponseTo'));
-        }
-        $this->iterateChildrenElements($xml, function(\DOMElement $node) {
-            if ($node->localName == 'Status' && $node->namespaceURI == Protocol::SAML2) {
-                $this->setStatus(new Status());
-                $this->getStatus()->loadFromXml($node);
-            }
-        });
-        if (!$this->getStatus()) {
-            throw new InvalidXmlException('Missing Status element');
-        }
+        $this->singleElementsFromXml($node, $context, array(
+            'Issuer' => array('saml', 'AerialShip\LightSaml\Model\Assertion\Issuer'),
+            'Signature' => array('ds', 'AerialShip\LightSaml\Model\XmlDSig\Signature'),
+            'Status' => array('samlp', 'AerialShip\LightSaml\Model\Protocol\Status'),
+        ));
     }
-
 
 }

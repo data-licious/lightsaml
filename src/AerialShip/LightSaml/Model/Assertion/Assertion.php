@@ -2,402 +2,318 @@
 
 namespace AerialShip\LightSaml\Model\Assertion;
 
-use AerialShip\LightSaml\Error\InvalidAssertionException;
-use AerialShip\LightSaml\Error\InvalidXmlException;
+use AerialShip\LightSaml\Error\LightSamlModelException;
 use AerialShip\LightSaml\Helper;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Meta\XmlRequiredAttributesTrait;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
 use AerialShip\LightSaml\Model\XmlDSig\Signature;
-use AerialShip\LightSaml\Model\XmlDSig\SignatureCreator;
-use AerialShip\LightSaml\Model\XmlDSig\SignatureXmlValidator;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\SamlConstants;
 
-
-class Assertion implements GetXmlInterface, LoadFromXmlInterface
+class Assertion extends AbstractSamlModel
 {
-    use XmlRequiredAttributesTrait;
+    //region Attributes
 
-
-    /** @var string */
+    /**
+     * @var string
+     */
     protected $id;
 
-    /** @var int */
+    /**
+     * @var string
+     */
+    protected $version = SamlConstants::VERSION_20;
+
+    /**
+     * @var int
+     */
     protected $issueInstant;
 
-    /** @var string */
-    protected $version = Protocol::VERSION_2_0;
+    //endregion
 
-    /** @var string */
+
+    //region Elements
+
+    /**
+     * @var Issuer
+     */
     protected $issuer;
 
-    /** @var Signature|null */
+    /**
+     * @var Signature|null
+     */
     protected $signature;
 
-    /** @var Subject */
+    /**
+     * @var Subject|null
+     */
     protected $subject;
 
-    /** @var int */
-    protected $notBefore;
+    /**
+     * @var Conditions|null
+     */
+    protected $conditions;
 
-    /** @var int */
-    protected $notOnOrAfter;
-
-    /** @var string[] */
-    protected $validAudience;
-
-    /** @var Attribute[] */
-    protected $attributes = array();
-
-    /** @var AuthnStatement */
+    /**
+     * @var AuthnStatement|null
+     */
     protected $authnStatement;
 
+    /**
+     * @var AttributeStatement|null
+     */
+    protected $attributeStatement;
+
+    //endregion
 
 
 
+
+
+    //region Getters & Setters
 
     /**
-     * @param string $id
+     * @param \AerialShip\LightSaml\Model\Assertion\Conditions|null $conditions
+     * @return $this|Assertion
      */
-    public function setID($id) {
-        $this->id = $id;
-    }
-
-    /**
-     * @return string
-     */
-    public function getID() {
-        return $this->id;
-    }
-
-
-    /**
-     * @param string $name
-     * @return Attribute|null
-     */
-    public function getAttribute($name) {
-        return @$this->attributes[$name];
-    }
-
-    /**
-     * @param Attribute $attribute
-     * @return $this
-     */
-    public function addAttribute(Attribute $attribute) {
-        $this->attributes[$attribute->getName()] = $attribute;
+    public function setConditions(Conditions $conditions = null)
+    {
+        $this->conditions = $conditions;
         return $this;
     }
 
     /**
-     * @return Attribute[]
+     * @return \AerialShip\LightSaml\Model\Assertion\Conditions|null
      */
-    public function getAllAttributes() {
-        return $this->attributes;
+    public function getConditions()
+    {
+        return $this->conditions;
     }
 
     /**
-     * @param $issueInstant
-     * @throws \InvalidArgumentException
-     * @param int|string $issueInstant
+     * @param string $id
+     * @return $this|Assertion
      */
-    public function setIssueInstant($issueInstant) {
-        if (is_string($issueInstant)) {
-            $issueInstant = Helper::parseSAMLTime($issueInstant);
-        } else if (!is_int($issueInstant) || $issueInstant < 1) {
-            throw new \InvalidArgumentException('Invalid IssueInstance');
-        }
-        $this->issueInstant = $issueInstant;
+    public function setId($id)
+    {
+        $this->id = (string)$id;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getId()
+    {
+        return $this->id;
+    }
+
+    /**
+     * @param string|int|\DateTime $issueInstant
+     * @throws \InvalidArgumentException
+     * @return $this|Assertion
+     */
+    public function setIssueInstant($issueInstant)
+    {
+        $this->issueInstant = Helper::getTimestampFromValue($issueInstant);
+        return $this;
     }
 
     /**
      * @return int
      */
-    public function getIssueInstant() {
+    public function getIssueInstantTimestamp()
+    {
         return $this->issueInstant;
     }
 
     /**
-     * @param string $issuer
+     * @return string
      */
-    public function setIssuer($issuer) {
-        $this->issuer = $issuer;
+    public function getIssueInstantString()
+    {
+        if ($this->issueInstant) {
+            return Helper::time2string($this->issueInstant);
+        }
+        return null;
     }
 
     /**
      * @return string
      */
-    public function getIssuer() {
+    public function getIssueInstantDateTime()
+    {
+        if ($this->issueInstant) {
+            return new \DateTime('@'.$this->issueInstant);
+        }
+        return null;
+    }
+
+    /**
+     * @param \AerialShip\LightSaml\Model\Assertion\Issuer $issuer
+     * @return $this|Assertion
+     */
+    public function setIssuer(Issuer $issuer = null)
+    {
+        $this->issuer = $issuer;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\Issuer
+     */
+    public function getIssuer()
+    {
         return $this->issuer;
     }
 
     /**
-     * @param Subject $subject
+     * @param \AerialShip\LightSaml\Model\XmlDSig\Signature $signature
+     * @return $this|Assertion
      */
-    public function setSubject($subject) {
-        $this->subject = $subject;
-    }
-
-    /**
-     * @return Subject
-     */
-    public function getSubject() {
-        return $this->subject;
-    }
-
-    /**
-     * @param int|string $notBefore
-     * @throws \InvalidArgumentException
-     */
-    public function setNotBefore($notBefore) {
-        if (is_string($notBefore)) {
-            $notBefore = Helper::parseSAMLTime($notBefore);
-        } else if (!is_int($notBefore) || $notBefore < 1) {
-            throw new \InvalidArgumentException();
-        }
-        $this->notBefore = $notBefore;
-    }
-
-    /**
-     * @return int
-     */
-    public function getNotBefore() {
-        return $this->notBefore;
-    }
-
-    /**
-     * @param int|string $notOnOrAfter
-     * @throws \InvalidArgumentException
-     */
-    public function setNotOnOrAfter($notOnOrAfter) {
-        if (is_string($notOnOrAfter)) {
-            $notOnOrAfter = Helper::parseSAMLTime($notOnOrAfter);
-        } else if (!is_int($notOnOrAfter) || $notOnOrAfter < 1) {
-            throw new \InvalidArgumentException();
-        }
-        $this->notOnOrAfter = $notOnOrAfter;
-    }
-
-    /**
-     * @return int
-     */
-    public function getNotOnOrAfter() {
-        return $this->notOnOrAfter;
-    }
-
-    /**
-     * @param Signature|null $signature
-     */
-    public function setSignature($signature) {
+    public function setSignature(Signature $signature = null)
+    {
         $this->signature = $signature;
+        return $this;
     }
 
     /**
-     * @return Signature|null
+     * @return \AerialShip\LightSaml\Model\XmlDSig\Signature|null
      */
-    public function getSignature() {
+    public function getSignature()
+    {
         return $this->signature;
     }
 
     /**
-     * @param string[] $validAudience
+     * @param \AerialShip\LightSaml\Model\Assertion\Subject $subject
+     * @return $this|Assertion
      */
-    public function setValidAudience(array $validAudience) {
-        $this->validAudience = $validAudience;
+    public function setSubject(Subject $subject)
+    {
+        $this->subject = $subject;
+        return $this;
     }
 
     /**
-     * @return \string[]
+     * @return \AerialShip\LightSaml\Model\Assertion\Subject
      */
-    public function getValidAudience() {
-        return $this->validAudience;
-    }
-
-    /**
-     * @param string $value
-     */
-    public function addValidAudience($value) {
-        $this->validAudience[] = $value;
+    public function getSubject()
+    {
+        return $this->subject;
     }
 
     /**
      * @param string $version
+     * @return $this|Assertion
      */
-    public function setVersion($version) {
-        $this->version = $version;
+    public function setVersion($version)
+    {
+        $this->version = (string)$version;
+        return $this;
     }
 
     /**
      * @return string
      */
-    public function getVersion() {
+    public function getVersion()
+    {
         return $this->version;
     }
 
     /**
-     * @param AuthnStatement $authnStatement
+     * @param \AerialShip\LightSaml\Model\Assertion\AttributeStatement|null $attributeStatement
+     * @return $this|Assertion
      */
-    public function setAuthnStatement(AuthnStatement $authnStatement) {
-        $this->authnStatement = $authnStatement;
+    public function setAttributeStatement(AttributeStatement $attributeStatement = null)
+    {
+        $this->attributeStatement = $attributeStatement;
+        return $this;
     }
 
     /**
-     * @return AuthnStatement
+     * @return \AerialShip\LightSaml\Model\Assertion\AttributeStatement|null
      */
-    public function getAuthnStatement() {
-        return $this->authnStatement;
+    public function getAttributeStatement()
+    {
+        return $this->attributeStatement;
     }
 
+    /**
+     * @param \AerialShip\LightSaml\Model\Assertion\AuthnStatement|null $authnStatement
+     * @return $this|Assertion
+     */
+    public function setAuthnStatement(AuthnStatement $authnStatement = null)
+    {
+        $this->authnStatement = $authnStatement;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\AuthnStatement|null
+     */
+    public function getAuthnStatement()
+    {
+        return $this->authnStatement;
+    }
+    //endregion
 
 
-
-    protected function prepareForXml() {
-        if (!$this->getID()) {
+    protected function prepareForXml()
+    {
+        if (false == $this->getIssuer()) {
+            throw new LightSamlModelException('Assertion must have Issuer set');
+        }
+        if (false == $this->getId()) {
             $this->setId(Helper::generateID());
         }
-        if (!$this->getIssueInstant()) {
+        if (false == $this->getIssueInstantTimestamp()) {
             $this->setIssueInstant(time());
-        }
-        if (!$this->getIssuer()) {
-            throw new InvalidAssertionException('Issuer not set in Assertion');
-        }
-        if (!$this->getSubject()) {
-            throw new InvalidAssertionException('Subject not set in Assertion');
-        }
-        if (!$this->getNotBefore()) {
-            $this->setNotBefore(time());
-        }
-        if (!$this->getNotOnOrAfter()) {
-            $this->setNotOnOrAfter(time());
-        }
-        if (!$this->getAuthnStatement()) {
-            $this->setAuthnStatement(new AuthnStatement());
         }
     }
 
 
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @throws \AerialShip\LightSaml\Error\InvalidAssertionException
-     * @return \DOMElement
+     * @param SerializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context) {
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
         $this->prepareForXml();
 
-        $result = $context->getDocument()->createElementNS(Protocol::NS_ASSERTION, 'saml:Assertion');
-        $parent->appendChild($result);
+        $result = $this->createElement('saml:Assertion', SamlConstants::NS_ASSERTION, $parent, $context);
 
-        $result->setAttribute('ID', $this->getID());
-        $result->setAttribute('Version', $this->getVersion());
-        $result->setAttribute('IssueInstant', Helper::time2string($this->getIssueInstant()));
+        $this->attributesToXml(array('ID', 'Version', 'IssueInstant'), $result);
 
-        $issuerNode = $context->getDocument()->createElement('Issuer', $this->getIssuer());
-        $result->appendChild($issuerNode);
+        $this->singleElementsToXml(
+            array('Issuer', 'Subject', 'Conditions', 'AttributeStatement', 'AuthnStatement'),
+            $result,
+            $context
+        );
 
-        $this->getSubject()->getXml($result, $context);
-
-        $conditionsNode = $context->getDocument()->createElement('Conditions');
-        $result->appendChild($conditionsNode);
-        $conditionsNode->setAttribute('NotBefore', Helper::time2string($this->getNotBefore()));
-        $conditionsNode->setAttribute('NotOnOrAfter', Helper::time2string($this->getNotOnOrAfter()));
-        if ($this->getValidAudience()) {
-            $audienceRestrictionNode = $context->getDocument()->createElement('AudienceRestriction');
-            $conditionsNode->appendChild($audienceRestrictionNode);
-            foreach ($this->getValidAudience() as $v) {
-                $audienceNode = $context->getDocument()->createElement('Audience', $v);
-                $audienceRestrictionNode->appendChild($audienceNode);
-            }
-        }
-
-        $attributeStatementNode = $context->getDocument()->createElement('AttributeStatement');
-        $result->appendChild($attributeStatementNode);
-        foreach ($this->getAllAttributes() as $attribute) {
-            $attribute->getXml($attributeStatementNode, $context);
-        }
-
-        $this->getAuthnStatement()->getXml($result, $context);
-
-        if ($signature = $this->getSignature()) {
-            if (!$signature instanceof SignatureCreator) {
-                throw new InvalidAssertionException('Signature must be SignatureCreator');
-            }
-            $signature->getXml($result, $context);
-        }
-
-        return $result;
+        // must be added at the end
+        $this->singleElementsToXml(array('Signature'), $parent, $context);
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        if ($xml->localName != 'Assertion' || $xml->namespaceURI != Protocol::NS_ASSERTION) {
-            throw new InvalidXmlException('Expected Assertion element but got '.$xml->localName);
-        }
-
-        $this->checkRequiredAttributes($xml, array('ID', 'Version', 'IssueInstant'));
-        $this->setID($xml->getAttribute('ID'));
-        $this->setVersion($xml->getAttribute('Version'));
-        $this->setIssueInstant($xml->getAttribute('IssueInstant'));
-
-        $xpath = new \DOMXPath($xml instanceof \DOMDocument ? $xml : $xml->ownerDocument);
-        $xpath->registerNamespace('saml', Protocol::NS_ASSERTION);
-
-        $signatureNode = null;
-        /** @var $node \DOMElement */
-        for ($node = $xml->firstChild; $node !== NULL; $node = $node->nextSibling) {
-            if ($node->localName == 'Issuer') {
-                $this->setIssuer(trim($node->textContent));
-            } else if ($node->localName == 'Subject') {
-                $this->setSubject(new Subject());
-                $this->getSubject()->loadFromXml($node);
-            } else if ($node->localName == 'Conditions') {
-                $this->loadXmlConditions($node, $xpath);
-            } else if ($node->localName == 'AttributeStatement') {
-                $this->loadXmlAttributeStatement($xml, $xpath);
-            } else if ($node->localName == 'AuthnStatement') {
-                $this->setAuthnStatement(new AuthnStatement());
-                $this->getAuthnStatement()->loadFromXml($node);
-            } else if ($node->localName == 'Signature' && $node->namespaceURI == Protocol::NS_XMLDSIG) {
-                $signatureNode = $node;
-            }
-        }
-
-        if ($signatureNode) {
-            $signature = new SignatureXmlValidator();
-            $signature->loadFromXml($signatureNode);
-            $this->setSignature($signature);
-        }
-    }
-
-
-    private function loadXmlConditions(\DOMElement $node, \DOMXPath $xpath)
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
     {
-        if ($node->hasAttribute('NotBefore')) {
-            $this->setNotBefore($node->getAttribute('NotBefore'));
-        }
-        if ($node->hasAttribute('NotOnOrAfter')) {
-            $this->setNotOnOrAfter($node->getAttribute('NotOnOrAfter'));
-        }
-        /** @var $list \DOMElement[] */
-        $list = $xpath->query('./saml:AudienceRestriction/saml:Audience', $node);
-        foreach ($list as $a) {
-            $this->addValidAudience($a->textContent);
-        }
-    }
+        $this->checkXmlNodeName($node, 'Assertion', SamlConstants::NS_ASSERTION);
 
+        $this->attributesFromXml($node, array('ID', 'Version', 'IssueInstant'));
 
-    private function loadXmlAttributeStatement(\DOMElement $root, \DOMXPath $xpath)
-    {
-        /** @var $list \DOMElement[] */
-        $list = $xpath->query('./saml:AttributeStatement/saml:Attribute', $root);
-        foreach ($list as $a) {
-            $attr = new Attribute();
-            $attr->loadFromXml($a);
-            $this->addAttribute($attr);
-        }
+        $this->singleElementsFromXml($node, $context, array(
+            'Issuer' => array('saml', 'AerialShip\LightSaml\Model\Assertion\Issuer'),
+            'Subject' => array('saml', 'AerialShip\LightSaml\Model\Assertion\Subject'),
+            'Conditions' => array('saml', 'AerialShip\LightSaml\Model\Assertion\Conditions'),
+            'AttributeStatement' => array('saml', 'AerialShip\LightSaml\Model\Assertion\AttributeStatement'),
+            'AuthnStatement' => array('saml', 'AerialShip\LightSaml\Model\Assertion\AuthnStatement'),
+        ));
     }
 
 }

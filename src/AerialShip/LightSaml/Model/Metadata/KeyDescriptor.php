@@ -2,20 +2,15 @@
 
 namespace AerialShip\LightSaml\Model\Metadata;
 
-use AerialShip\LightSaml\Error\InvalidXmlException;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Error\LightSamlXmlException;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Meta\XmlRequiredAttributesTrait;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
+use AerialShip\LightSaml\SamlConstants;
 use AerialShip\LightSaml\Security\X509Certificate;
 
-
-class KeyDescriptor implements GetXmlInterface, LoadFromXmlInterface
+class KeyDescriptor extends AbstractSamlModel
 {
-    use XmlRequiredAttributesTrait;
-
-
     const USE_SIGNING = 'signing';
     const USE_ENCRYPTION = 'encryption';
 
@@ -27,8 +22,12 @@ class KeyDescriptor implements GetXmlInterface, LoadFromXmlInterface
     private $certificate;
 
 
-
-    function __construct($use = null, X509Certificate $certificate = null) {
+    /**
+     * @param string|null $use
+     * @param X509Certificate|null $certificate
+     */
+    public function __construct($use = null, X509Certificate $certificate = null)
+    {
         $this->use = $use;
         $this->certificate = $certificate;
     }
@@ -38,10 +37,11 @@ class KeyDescriptor implements GetXmlInterface, LoadFromXmlInterface
      * @param string $use
      * @throws \InvalidArgumentException
      */
-    public function setUse($use) {
+    public function setUse($use)
+    {
         $use = trim($use);
-        if ($use != '' && $use != self::USE_ENCRYPTION && $use != self::USE_SIGNING) {
-            throw new \InvalidArgumentException("Invalid use value: $use");
+        if (false != $use && self::USE_ENCRYPTION != $use && self::USE_SIGNING != $use) {
+            throw new \InvalidArgumentException(sprintf("Invalid use value '%s'", $use));
         }
         $this->use = $use;
     }
@@ -49,7 +49,8 @@ class KeyDescriptor implements GetXmlInterface, LoadFromXmlInterface
     /**
      * @return string
      */
-    public function getUse() {
+    public function getUse()
+    {
         return $this->use;
     }
 
@@ -57,69 +58,65 @@ class KeyDescriptor implements GetXmlInterface, LoadFromXmlInterface
     /**
      * @param X509Certificate $certificate
      */
-    public function setCertificate(X509Certificate $certificate) {
+    public function setCertificate(X509Certificate $certificate)
+    {
         $this->certificate = $certificate;
     }
 
     /**
      * @return X509Certificate
      */
-    public function getCertificate() {
+    public function getCertificate()
+    {
         return $this->certificate;
     }
 
 
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMNode
+     * @param SerializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context)
+    public function serialize(\DOMNode $parent, SerializationContext $context)
     {
-        $result = $context->getDocument()->createElementNS(Protocol::NS_METADATA, 'md:KeyDescriptor');
-        $parent->appendChild($result);
-        if ($this->getUse()) {
-            $result->setAttribute('use', $this->getUse());
-        }
-        $keyInfo = $parent->ownerDocument->createElementNS(Protocol::NS_XMLDSIG, 'ds:KeyInfo');
+        $result = $this->createElement('md:KeyDescriptor', SamlConstants::NS_METADATA, $parent, $context);
+
+        $this->attributesToXml(array('use'), $result);
+
+        $keyInfo = $context->getDocument()->createElementNS(SamlConstants::NS_XMLDSIG, 'ds:KeyInfo');
         $result->appendChild($keyInfo);
-        $xData = $parent->ownerDocument->createElementNS(Protocol::NS_XMLDSIG, 'ds:X509Data');
+        $xData = $context->getDocument()->createElementNS(SamlConstants::NS_XMLDSIG, 'ds:X509Data');
         $keyInfo->appendChild($xData);
-        $xCert = $parent->ownerDocument->createElementNS(Protocol::NS_XMLDSIG, 'ds:X509Certificate');
+        $xCert = $context->getDocument()->createElementNS(SamlConstants::NS_XMLDSIG, 'ds:X509Certificate');
         $xData->appendChild($xCert);
         $xCert->nodeValue = $this->getCertificate()->getData();
-        return $result;
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @throws \AerialShip\LightSaml\Error\LightSamlXmlException
+     * @return void
      */
-    public function loadFromXml(\DOMElement $xml)
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
     {
-        if ($xml->localName != 'KeyDescriptor' || $xml->namespaceURI != Protocol::NS_METADATA) {
-            throw new InvalidXmlException('Expected KeyDescriptor element and '.Protocol::NS_METADATA.' namespace but got '.$xml->localName);
-        }
+        $this->checkXmlNodeName($node, 'KeyDescriptor', SamlConstants::NS_METADATA);
 
-        $this->setUse($xml->getAttribute('use'));
+        $this->attributesFromXml($node, array('use'));
 
-        $xpath = new \DOMXPath($xml instanceof \DOMDocument ? $xml : $xml->ownerDocument);
-        $xpath->registerNamespace('ds', \XMLSecurityDSig::XMLDSIGNS);
-
-        $list = $xpath->query('./ds:KeyInfo/ds:X509Data/ds:X509Certificate', $xml);
-        if ($list->length != 1) {
-            throw new InvalidXmlException("Missing X509Certificate node");
+        $list = $context->getXpath()->query('./ds:KeyInfo/ds:X509Data/ds:X509Certificate', $node);
+        if (1 != $list->length) {
+            throw new LightSamlXmlException("Missing X509Certificate node");
         }
 
         /** @var $x509CertificateNode \DOMElement */
         $x509CertificateNode = $list->item(0);
-        $certificateData = trim($x509CertificateNode->nodeValue);
-        if (!$certificateData) {
-            throw new InvalidXmlException("Missing certificate data");
+        $certificateData = trim($x509CertificateNode->textContent);
+        if (false == $certificateData) {
+            throw new LightSamlXmlException("Missing certificate data");
         }
 
         $this->certificate = new X509Certificate();
         $this->certificate->setData($certificateData);
     }
-
 }

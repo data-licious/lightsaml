@@ -2,7 +2,6 @@
 
 namespace AerialShip\LightSaml;
 
-
 final class Helper
 {
     const TIME_FORMAT = 'Y-m-d\TH:i:s\Z';
@@ -12,9 +11,27 @@ final class Helper
      * @param int $time
      * @return string
      */
-    static public function time2string($time)
+    public static function time2string($time)
     {
         return gmdate('Y-m-d\TH:i:s\Z', $time);
+    }
+
+    /**
+     * @param int|string|\DateTime $value
+     * @return int
+     * @throws \InvalidArgumentException
+     */
+    public static function getTimestampFromValue($value)
+    {
+        if (is_string($value)) {
+            return Helper::parseSAMLTime($value);
+        } else if ($value instanceof \DateTime) {
+            return $value->getTimestamp();
+        } else if (is_int($value)) {
+            return $value;
+        } else {
+            throw new \InvalidArgumentException();
+        }
     }
 
     /**
@@ -22,7 +39,7 @@ final class Helper
      * @return int
      * @throws \InvalidArgumentException
      */
-    static public function parseSAMLTime($time)
+    public static function parseSAMLTime($time)
     {
         $matches = array();
         if(preg_match('/^(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)T(\\d\\d):(\\d\\d):(\\d\\d)(?:\\.\\d+)?Z$/D',
@@ -43,7 +60,7 @@ final class Helper
     }
 
 
-    static public function getClassNameOnly($value)
+    public static function getClassNameOnly($value)
     {
         if (is_object($value)) {
             $value = get_class($value);
@@ -56,7 +73,7 @@ final class Helper
         return $value;
     }
 
-    static public function doClassNameMatch($object, $class)
+    public static function doClassNameMatch($object, $class)
     {
         if (!is_string($class)) {
             throw new \InvalidArgumentException('class argument must be string');
@@ -81,7 +98,7 @@ final class Helper
      * @return string
      * @throws \InvalidArgumentException
      */
-    static public function generateRandomBytes($length)
+    public static function generateRandomBytes($length)
     {
         $length = intval($length);
         if (!$length) {
@@ -103,7 +120,7 @@ final class Helper
      * @param string $bytes
      * @return string
      */
-    static public function stringToHex($bytes)
+    public static function stringToHex($bytes)
     {
         $result = '';
         $len = strlen($bytes);
@@ -117,7 +134,7 @@ final class Helper
     /**
      * @return string
      */
-    static public function generateID()
+    public static function generateID()
     {
         return '_'.self::stringToHex(self::generateRandomBytes(21));
     }

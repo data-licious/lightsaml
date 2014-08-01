@@ -2,277 +2,113 @@
 
 namespace AerialShip\LightSaml\Model\Metadata;
 
-use AerialShip\LightSaml\Bindings;
-use AerialShip\LightSaml\Error\InvalidXmlException;
-use AerialShip\LightSaml\Helper;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Meta\XmlChildrenLoaderTrait;
-use AerialShip\LightSaml\Model\Metadata\Service\AbstractService;
-use AerialShip\LightSaml\Model\Metadata\Service\AssertionConsumerService;
-use AerialShip\LightSaml\Model\Metadata\Service\SingleLogoutService;
-use AerialShip\LightSaml\Protocol;
 
-
-abstract class SSODescriptor implements GetXmlInterface, LoadFromXmlInterface
+abstract class SSODescriptor extends RoleDescriptor
 {
-    use XmlChildrenLoaderTrait;
+    /** @var  SingleLogoutService[]|null */
+    protected $singleLogoutServices;
 
-
-    /** @var AbstractService[] */
-    protected $services;
-
-    /** @var KeyDescriptor[] */
-    protected $keyDescriptors;
-
-    /** @var NameIDFormat[] */
-    protected $nameIdFormats = array();
-
-
-
-    public function __construct(array $services = null, array $keyDescriptors = null)
-    {
-        $this->services = $services ?: array();
-        $this->keyDescriptors = $keyDescriptors ?: array();
-    }
+    /** @var  string[]|null */
+    protected $nameIDFormats;
 
 
 
     /**
-     * @return KeyDescriptor[]
+     * @param \AerialShip\LightSaml\Model\Metadata\SingleLogoutService $singleLogoutService
+     * @return $this|SSODescriptor
      */
-    public function getKeyDescriptors()
+    public function addSingleLogoutService(SingleLogoutService $singleLogoutService)
     {
-        return $this->keyDescriptors;
-    }
-
-    /**
-     * @param KeyDescriptor[] $keyDescriptors
-     */
-    public function setKeyDescriptors(array $keyDescriptors)
-    {
-        $this->keyDescriptors = $keyDescriptors;
-    }
-
-
-    /**
-     * @param KeyDescriptor $keyDescriptor
-     */
-    public function addKeyDescriptor(KeyDescriptor $keyDescriptor)
-    {
-        $this->keyDescriptors[] = $keyDescriptor;
-    }
-
-    /**
-     * @param AbstractService[] $services
-     */
-    public function setServices(array $services)
-    {
-        $this->services = $services;
-    }
-
-    /**
-     * @return AbstractService[]
-     */
-    public function getServices()
-    {
-        return $this->services;
-    }
-
-    /**
-     * @param AbstractService $service
-     * @return SpSsoDescriptor
-     */
-    public function addService(AbstractService $service)
-    {
-        $this->services[] = $service;
+        if (false == is_array($this->singleLogoutServices)) {
+            $this->singleLogoutServices = array();
+        }
+        $this->singleLogoutServices[] = $singleLogoutService;
         return $this;
     }
 
     /**
-     * @return NameIDFormat[]
+     * @return \AerialShip\LightSaml\Model\Metadata\SingleLogoutService[]|null
      */
-    public function getNameIdFormats()
+    public function getAllSingleLogoutServices()
     {
-        return $this->nameIdFormats;
+        return $this->singleLogoutServices;
     }
 
     /**
-     * @param NameIDFormat $nameIDFormat
+     * @param string $binding
+     * @return \AerialShip\LightSaml\Model\Metadata\SingleLogoutService[]
      */
-    public function addNameIdFormat(NameIDFormat $nameIDFormat)
-    {
-        $this->nameIdFormats[] = $nameIDFormat;
-    }
-
-    /**
-     * @param NameIDFormat[] $nameIdFormats
-     */
-    public function setNameIdFormats(array $nameIdFormats)
-    {
-        $this->nameIdFormats = $nameIdFormats;
-    }
-
-
-    /**
-     * @return string[]
-     */
-    public function getSupportedProtocols()
-    {
-        $arr = array();
-        foreach ($this->getServices() as $service) {
-            $protocol = Bindings::getBindingProtocol($service->getBinding());
-            $arr[$protocol] = $protocol;
-        }
-        return array_values($arr);
-    }
-
-    /**
-     * @return string
-     */
-    public function getProtocolSupportEnumeration()
-    {
-        return join(' ', $this->getSupportedProtocols());
-    }
-
-
-    /**
-     * @param string|null $use
-     * @return KeyDescriptor[]
-     */
-    public function findKeyDescriptors($use)
+    public function getAllSingleLogoutServicesByBinding($binding)
     {
         $result = array();
-        foreach ($this->getKeyDescriptors() as $kd) {
-            if ($use === null || !$kd->getUse() || $kd->getUse() == $use) {
-                $result[] = $kd;
+        foreach ($this->getAllSingleLogoutServices() as $svc) {
+            if ($binding == $svc->getBinding()) {
+                $result[] = $svc;
             }
         }
+
         return $result;
     }
 
     /**
-     * @param string $class
-     * @param string|null $binding
-     * @return AbstractService[]
+     * @param string $nameIDFormat
+     * @return $this|SSODescriptor
      */
-    public function findServices($class, $binding)
+    public function addNameIDFormat($nameIDFormat)
     {
-        $result = array();
-        foreach ($this->getServices() as $service) {
-            if (Helper::doClassNameMatch($service, $class)) {
-                if (!$binding || $binding == $service->getBinding()) {
-                    $result[] = $service;
+        $this->nameIDFormats[] = $nameIDFormat;
+        return $this;
+    }
+
+    /**
+     * @return null|string[]
+     */
+    public function getAllNameIDFormats()
+    {
+        return $this->nameIDFormats;
+    }
+
+    /**
+     * @param string $nameIdFormat
+     * @return bool
+     */
+    public function hasNameIDFormat($nameIdFormat)
+    {
+        if ($this->nameIDFormats) {
+            foreach ($this->nameIDFormats as $format) {
+                if ($format == $nameIdFormat) {
+                    return true;
                 }
             }
         }
-        return $result;
+
+        return false;
     }
 
-    /**
-     * @param string|null $binding
-     * @return SingleLogoutService[]
-     */
-    public function findSingleLogoutServices($binding = null)
+    public function serialize(\DOMNode $parent, SerializationContext $context)
     {
-        return $this->findServices('AerialShip\LightSaml\Model\Metadata\Service\SingleLogoutService', $binding);
+        parent::serialize($parent, $context);
+
+        $this->manyElementsToXml($this->getAllNameIDFormat(), $parent, $context, 'NameIDFormat');
+
+        $this->manyElementsToXml($this->getAllSingleLogoutServices(), $parent, $context, null);
     }
 
     /**
-     * @param string|null $binding
-     * @return AssertionConsumerService[]
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    public function findAssertionConsumerServices($binding = null)
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
     {
-        return $this->findServices('AerialShip\LightSaml\Model\Metadata\Service\AssertionConsumerService', $binding);
+        parent::deserialize($node, $context);
+
+        $this->manyElementsFromXml($node, $context, 'NameIDFormat', 'md', null, 'addNameIDFormat');
+
+        $this->manyElementsFromXml($node, $context, 'SingleLogoutService', 'md',
+            'AerialShip\LightSaml\Model\Metadata\SingleLogoutService', 'addSingleLogoutService');
     }
 
-    /**
-     * @param string|null $binding
-     * @return Service\AbstractService[]
-     */
-    public function findSingleSignOnServices($binding = null)
-    {
-        return $this->findServices('AerialShip\LightSaml\Model\Metadata\Service\SingleSignOnService', $binding);
-    }
-
-
-    /**
-     * @return string
-     */
-    abstract public function getXmlNodeName();
-
-
-    /**
-     * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
-     */
-    public function getXml(\DOMNode $parent, SerializationContext $context)
-    {
-        $result = $context->getDocument()->createElementNS(Protocol::NS_METADATA, 'md:'.$this->getXmlNodeName());
-        $parent->appendChild($result);
-        $result->setAttribute('protocolSupportEnumeration', $this->getProtocolSupportEnumeration());
-        foreach ($this->getKeyDescriptors() as $kd) {
-            $kd->getXml($result, $context);
-        }
-        foreach ($this->getServices() as $service) {
-            $service->getXml($result, $context);
-        }
-        foreach ($this->getNameIdFormats() as $nameIdFormat) {
-            $nameIdFormat->getXml($result, $context);
-        }
-        return $result;
-    }
-
-
-    /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
-     */
-    public function loadFromXml(\DOMElement $xml)
-    {
-        $name = $this->getXmlNodeName();
-        if ($xml->localName != $name || $xml->namespaceURI != Protocol::NS_METADATA) {
-            throw new InvalidXmlException("Expected $name element and ".Protocol::NS_METADATA.' namespace but got '.$xml->localName);
-        }
-
-        $this->loadXmlChildren(
-            $xml,
-            array(
-                array(
-                    'node' => array('name'=>'SingleLogoutService', 'ns'=>Protocol::NS_METADATA),
-                    'class' => '\AerialShip\LightSaml\Model\Metadata\Service\SingleLogoutService'
-                ),
-                array(
-                    'node' => array('name'=>'SingleSignOnService', 'ns'=>Protocol::NS_METADATA),
-                    'class' => '\AerialShip\LightSaml\Model\Metadata\Service\SingleSignOnService'
-                ),
-                array(
-                    'node' => array('name'=>'AssertionConsumerService', 'ns'=>Protocol::NS_METADATA),
-                    'class' => '\AerialShip\LightSaml\Model\Metadata\Service\AssertionConsumerService'
-                ),
-                array(
-                    'node' => array('name'=>'KeyDescriptor', 'ns'=>Protocol::NS_METADATA),
-                    'class' => '\AerialShip\LightSaml\Model\Metadata\KeyDescriptor'
-                ),
-                array(
-                    'node' => array('name'=>'NameIDFormat', 'ns'=>Protocol::NS_METADATA),
-                    'class' => '\AerialShip\LightSaml\Model\Metadata\NameIDFormat'
-                ),
-            ),
-            function(LoadFromXmlInterface $obj) {
-                if ($obj instanceof AbstractService) {
-                    $this->addService($obj);
-                } else if ($obj instanceof KeyDescriptor) {
-                    $this->addKeyDescriptor($obj);
-                } else if ($obj instanceof NameIDFormat) {
-                    $this->addNameIdFormat($obj);
-                } else {
-                    throw new \InvalidArgumentException('Invalid item type '.get_class($obj));
-                }
-            }
-        );
-    }
 }

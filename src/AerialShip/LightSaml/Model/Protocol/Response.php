@@ -2,33 +2,15 @@
 
 namespace AerialShip\LightSaml\Model\Protocol;
 
-use AerialShip\LightSaml\Error\InvalidResponseException;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
 use AerialShip\LightSaml\Model\Assertion\Assertion;
-use AerialShip\LightSaml\Protocol;
-
+use AerialShip\LightSaml\SamlConstants;
 
 class Response extends StatusResponse
 {
     /** @var Assertion[] */
     protected $assertions = array();
-
-
-
-    /**
-     * @return string
-     */
-    function getXmlNodeLocalName() {
-        return 'Response';
-    }
-
-    /**
-     * @return string|null
-     */
-    function getXmlNodeNamespace() {
-        return Protocol::SAML2;
-    }
-
 
 
     /**
@@ -44,42 +26,29 @@ class Response extends StatusResponse
 
 
 
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        $result = $this->createElement('samlp:Response', SamlConstants::NS_PROTOCOL, $parent, $context);
 
-    protected function prepareForXml() {
-        parent::prepareForXml();
-        if (!$this->getAllAssertions()) {
-            throw new InvalidResponseException('Missing Assertions');
-        }
+        parent::serialize($result, $context);
+
+        $this->manyElementsToXml($this->getAllAssertions(), $result, $context, null);
     }
 
-
     /**
-     * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context) {
-        $result = parent::getXml($parent, $context);
-        foreach ($this->getAllAssertions() as $assertion) {
-            $assertion->getXml($result, $context);
-        }
-        return $result;
-    }
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'Response', SamlConstants::NS_PROTOCOL);
 
+        parent::deserialize($node, $context);
 
-    /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
-     */
-    function loadFromXml(\DOMElement $xml) {
-        parent::loadFromXml($xml);
-        $this->iterateChildrenElements($xml, function(\DOMElement $node) {
-            if ($node->localName == 'Assertion' && $node->namespaceURI == Protocol::NS_ASSERTION) {
-                $assertion = new Assertion();
-                $assertion->loadFromXml($node);
-                $this->addAssertion($assertion);
-            }
-        });
+        $this->assertions = array();
+        $this->manyElementsFromXml($node, $context, 'Assertion', 'samlp',
+            'AerialShip\LightSaml\Model\Assertion\Assertion', 'addAssertion');
     }
 
 }

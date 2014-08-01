@@ -2,136 +2,86 @@
 
 namespace AerialShip\LightSaml\Model\Assertion;
 
-use AerialShip\LightSaml\Error\InvalidSubjectException;
-use AerialShip\LightSaml\Error\InvalidXmlException;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Meta\XmlChildrenLoaderTrait;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
+use AerialShip\LightSaml\SamlConstants;
 
-
-class Subject implements GetXmlInterface, LoadFromXmlInterface
+class Subject extends AbstractSamlModel
 {
-    use XmlChildrenLoaderTrait;
-
-
     /** @var NameID */
-    protected $nameID;
+    protected $nameId;
 
     /** @var SubjectConfirmation[] */
-    protected $subjectConfirmations = array();
-
+    protected $subjectConfirmation = array();
 
 
 
     /**
-     * @param NameID $nameID
+     * @param \AerialShip\LightSaml\Model\Assertion\NameID $nameId
+     * @return $this|Subject
      */
-    public function setNameID($nameID) {
-        $this->nameID = $nameID;
-    }
-
-    /**
-     * @return NameID
-     */
-    public function getNameID() {
-        return $this->nameID;
-    }
-
-    /**
-     * @param SubjectConfirmation $subjectConfirmation
-     */
-    public function addSubjectConfirmation($subjectConfirmation) {
-        $this->subjectConfirmations[] = $subjectConfirmation;
-    }
-
-    /**
-     * @return SubjectConfirmation[]
-     */
-    public function getSubjectConfirmations() {
-        return $this->subjectConfirmations;
-    }
-
-
-
-    protected function prepareForXml()
+    public function setNameID(NameID $nameId = null)
     {
-        if (!$this->getNameID()) {
-            throw new InvalidSubjectException('No NameID set');
-        }
+        $this->nameId = $nameId;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\NameID
+     */
+    public function getNameID()
+    {
+        return $this->nameId;
+    }
+
+    /**
+     * @param \AerialShip\LightSaml\Model\Assertion\SubjectConfirmation $subjectConfirmation
+     * @return $this|Subject
+     */
+    public function addSubjectConfirmation(SubjectConfirmation $subjectConfirmation)
+    {
+        $this->subjectConfirmation[] = $subjectConfirmation;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\SubjectConfirmation[]
+     */
+    public function getAllSubjectConfirmations()
+    {
+        return $this->subjectConfirmation;
     }
 
 
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
+     * @param SerializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context)
+    public function serialize(\DOMNode $parent, SerializationContext $context)
     {
-        $this->prepareForXml();
+        $result = $this->createElement('Subject', null, $parent, $context);
 
-        $result = $context->getDocument()->createElement('Subject');
-        $parent->appendChild($result);
-
-        $this->getNameID()->getXml($result, $context);
-
-        foreach ($this->getSubjectConfirmations() as $sc) {
-            $sc->getXml($result, $context);
-        }
-
-        return $result;
+        $this->singleElementsToXml(array('NameID'), $result, $context);
+        $this->manyElementsToXml($this->getAllSubjectConfirmations(), $result, $context, null);
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \LogicException
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml)
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
     {
-        if ($xml->localName != 'Subject' || $xml->namespaceURI != Protocol::NS_ASSERTION) {
-            throw new InvalidXmlException('Expected Subject element but got '.$xml->localName);
-        }
+        $this->checkXmlNodeName($node, 'Subject', SamlConstants::NS_ASSERTION);
 
-        $this->nameID = null;
-        $this->subjectConfirmations = array();
+        $this->singleElementsFromXml($node, $context, array(
+            'NameID' => array('saml', 'AerialShip\LightSaml\Model\Assertion\NameID'),
+        ));
 
-        $this->loadXmlChildren(
-            $xml,
-            array(
-                array(
-                    'node' => array('name'=>'NameID', 'ns'=>Protocol::NS_ASSERTION),
-                    'class' => '\AerialShip\LightSaml\Model\Assertion\NameID'
-                ),
-                array(
-                    'node' => array('name'=>'SubjectConfirmation', 'ns'=>Protocol::NS_ASSERTION),
-                    'class' => '\AerialShip\LightSaml\Model\Assertion\SubjectConfirmation'
-                )
-            ),
-            function ($object) {
-                $this->loadXmlCallback($object);
-            }
-        );
-        if (!$this->getSubjectConfirmations()) {
-            throw new InvalidXmlException('Missing SubjectConfirmation element in Subject');
-        }
-    }
-
-
-    protected function loadXmlCallback($object)
-    {
-        if ($object instanceof NameID) {
-            if ($this->getNameID()) {
-                throw new InvalidXmlException('More than one NameID in Subject');
-            }
-            $this->setNameID($object);
-        } else if ($object instanceof SubjectConfirmation) {
-            $this->addSubjectConfirmation($object);
-        } else {
-            throw new \LogicException('Unexpected type '.get_class($object));
-        }
+        $this->manyElementsFromXml($node, $context, 'SubjectConfirmation', 'saml',
+            'AerialShip\LightSaml\Model\Assertion\SubjectConfirmation', 'addSubjectConfirmation');
     }
 
 }

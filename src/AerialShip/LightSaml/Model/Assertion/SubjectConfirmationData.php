@@ -2,162 +2,194 @@
 
 namespace AerialShip\LightSaml\Model\Assertion;
 
-use AerialShip\LightSaml\Error\InvalidXmlException;
 use AerialShip\LightSaml\Helper;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
+use AerialShip\LightSaml\SamlConstants;
 
-
-class SubjectConfirmationData implements GetXmlInterface, LoadFromXmlInterface
+class SubjectConfirmationData extends AbstractSamlModel
 {
-    /** @var int */
+    /** @var int|null */
     protected $notBefore;
 
-    /** @var int */
+    /** @var int|null */
     protected $notOnOrAfter;
 
-    /** @var string */
-    protected $recipient;
-
-    /** @var string */
-    protected $inResponseTo;
-
-    /** @var string */
+    /** @var string|null */
     protected $address;
 
+    /** @var string|null */
+    protected $inResponseTo;
 
+    /** @var string|null */
+    protected $recipient;
 
 
 
     /**
-     * @param string $address
+     * @param null|string $address
+     * @return $this|SubjectConfirmationData
      */
-    public function setAddress($address) {
-        $this->address = $address;
+    public function setAddress($address)
+    {
+        $this->address = (string)$address;
+        return $this;
     }
 
     /**
-     * @return string
+     * @return null|string
      */
-    public function getAddress() {
+    public function getAddress()
+    {
         return $this->address;
     }
 
     /**
-     * @param string $inResponseTo
+     * @param null|string $inResponseTo
+     * @return $this|SubjectConfirmationData
      */
-    public function setInResponseTo($inResponseTo) {
-        $this->inResponseTo = $inResponseTo;
+    public function setInResponseTo($inResponseTo)
+    {
+        $this->inResponseTo = (string)$inResponseTo;
+        return $this;
     }
 
     /**
-     * @return string
+     * @return null|string
      */
-    public function getInResponseTo() {
+    public function getInResponseTo()
+    {
         return $this->inResponseTo;
     }
 
     /**
-     * @param int|string $notBefore
-     * @throws \InvalidArgumentException
+     * @param int|string|\DateTime $notBefore
+     * @return $this|SubjectConfirmationData
      */
-    public function setNotBefore($notBefore) {
-        if (is_string($notBefore)) {
-            $notBefore = Helper::parseSAMLTime($notBefore);
-        }
-        if (!is_int($notBefore) || $notBefore < 1) {
-            throw new \InvalidArgumentException();
-        }
-        $this->notBefore = $notBefore;
+    public function setNotBefore($notBefore)
+    {
+        $this->notBefore = Helper::getTimestampFromValue($notBefore);
+        return $this;
     }
 
     /**
-     * @return int
+     * @return int|null
      */
-    public function getNotBefore() {
+    public function getNotBeforeTimestamp()
+    {
         return $this->notBefore;
     }
 
     /**
-     * @param int|string $notOnOrAfter
-     * @throws \InvalidArgumentException
+     * @return string|null
      */
-    public function setNotOnOrAfter($notOnOrAfter) {
-        if (is_string($notOnOrAfter)) {
-            $notOnOrAfter = Helper::parseSAMLTime($notOnOrAfter);
+    public function getNotBeforeString()
+    {
+        if ($this->notBefore) {
+            return Helper::time2string($this->notBefore);
         }
-        if (!is_int($notOnOrAfter) || $notOnOrAfter < 1) {
-            throw new \InvalidArgumentException();
-        }
-        $this->notOnOrAfter = $notOnOrAfter;
+        return null;
     }
 
     /**
-     * @return int
+     * @return \DateTime|null
      */
-    public function getNotOnOrAfter() {
+    public function getNotBeforeDateTime()
+    {
+        if ($this->notBefore) {
+            return new \DateTime('@'.$this->notBefore);
+        }
+        return null;
+    }
+
+    /**
+     * @param int|string|\DateTime $notOnOrAfter
+     * @return $this|SubjectConfirmationData
+     */
+    public function setNotOnOrAfter($notOnOrAfter)
+    {
+        $this->notOnOrAfter = Helper::getTimestampFromValue($notOnOrAfter);
+        return $this;
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getNotOnOrAfterTimestamp()
+    {
         return $this->notOnOrAfter;
     }
 
     /**
-     * @param string $recipient
+     * @return string|null
      */
-    public function setRecipient($recipient) {
-        $this->recipient = $recipient;
+    public function getNotOnOrAfterString()
+    {
+        if ($this->notOnOrAfter) {
+            return Helper::time2string($this->notOnOrAfter);
+        }
+        return null;
     }
 
     /**
-     * @return string
+     * @return \DateTime|null
      */
-    public function getRecipient() {
+    public function getNotOnOrAfterDateTime()
+    {
+        if ($this->notOnOrAfter) {
+            return new \DateTime('@'.$this->notOnOrAfter);
+        }
+        return null;
+    }
+
+    /**
+     * @param null|string $recipient
+     * @return $this|SubjectConfirmationData
+     */
+    public function setRecipient($recipient)
+    {
+        $this->recipient = (string)$recipient;
+        return $this;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getRecipient()
+    {
         return $this->recipient;
     }
 
 
+
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
+     * @param SerializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context) {
-        $result = $context->getDocument()->createElement('SubjectConfirmationData');
-        $parent->appendChild($result);
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        $result = $this->createElement('SubjectConfirmationData', null, $parent, $context);
 
-        if ($this->getNotBefore()) {
-            $result->setAttribute('NotBefore', Helper::time2string($this->getNotBefore()));
-        }
-        if ($this->getNotOnOrAfter()) {
-            $result->setAttribute('NotOnOrAfter', Helper::time2string($this->getNotBefore()));
-        }
-
-        foreach (array('Recipient', 'InResponseTo', 'Address') as $name) {
-            $method = "get{$name}";
-            if ($this->$method()) {
-                $result->setAttribute($name, $this->$method());
-            }
-        }
-
-        return $result;
+        $this->attributesToXml(
+            array('InResponseTo', 'NotBefore', 'NotOnOrAfter', 'Address', 'Recipient'),
+            $result
+        );
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        if ($xml->localName != 'SubjectConfirmationData' || $xml->namespaceURI != Protocol::NS_ASSERTION) {
-            throw new InvalidXmlException('Expected SubjectConfirmationData element but got '.$xml->localName);
-        }
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'SubjectConfirmationData', SamlConstants::NS_ASSERTION);
 
-        foreach (array('NotBefore', 'NotOnOrAfter', 'Recipient', 'InResponseTo', 'Address') as $name) {
-            if ($xml->hasAttribute($name)) {
-                $method = "set{$name}";
-                $this->$method($xml->getAttribute($name));
-            }
-        }
+        $this->attributesFromXml($node, array(
+            'InResponseTo', 'NotBefore', 'NotOnOrAfter', 'Address', 'Recipient'
+        ));
     }
-
 
 }

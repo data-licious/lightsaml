@@ -2,82 +2,86 @@
 
 namespace AerialShip\LightSaml\Model\Assertion;
 
-use AerialShip\LightSaml\Error\InvalidXmlException;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
+use AerialShip\LightSaml\SamlConstants;
 
-
-class Attribute implements GetXmlInterface, LoadFromXmlInterface
+class Attribute extends AbstractSamlModel
 {
-    /** @var string */
+    /**
+     * @var string
+     */
     protected $name;
 
-    /** @var  string|null */
+    /**
+     * @var string
+     */
     protected $nameFormat;
 
-    /** @var string */
+    /**
+     * @var string
+     */
     protected $friendlyName;
 
-    /** @var string[] */
-    protected $values = array();
-
-
     /**
-     * @param string $name
-     * @param string[] $values
-     * @param string|null $friendlyName
+     * @var string[]
      */
-    public function __construct($name = null, array $values = array(), $friendlyName = null)
-    {
-        $this->name = $name;
-        $this->values = $values;
-        $this->friendlyName = $friendlyName;
-    }
+    protected $attributeValue;
 
 
     /**
-     * @param string $name
-     */
-    public function setName($name)
-    {
-        $this->name = $name;
-    }
-
-    /**
-     * @return string
-     */
-    public function getName()
-    {
-        return $this->name;
-    }
-
-    /**
-     * @param null|string $nameFormat
+     * @param string $attributeValue
      * @return $this|Attribute
      */
-    public function setNameFormat($nameFormat)
+    public function addAttributeValue($attributeValue)
     {
-        $this->nameFormat = $nameFormat;
+        if (false == is_array($this->attributeValue)) {
+            $this->attributeValue = array();
+        }
+        $this->attributeValue[] = $attributeValue;
 
         return $this;
     }
 
     /**
-     * @return null|string
+     * @param string[]|string $attributeValue
+     * @return $this|Attribute
      */
-    public function getNameFormat()
+    public function setAttributeValue($attributeValue)
     {
-        return $this->nameFormat;
+        if (false == is_array($attributeValue)) {
+            $attributeValue = array($attributeValue);
+        }
+        $this->attributeValue = $attributeValue;
+        return $this;
+    }
+
+    /**
+     * @return \string[]
+     */
+    public function getAttributeValue()
+    {
+        return $this->attributeValue;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getFirstAttributeValue()
+    {
+        $arr = $this->attributeValue;
+        return array_shift($arr);
     }
 
     /**
      * @param string $friendlyName
+     * @return $this|Attribute
      */
     public function setFriendlyName($friendlyName)
     {
         $this->friendlyName = $friendlyName;
+        return $this;
     }
 
     /**
@@ -89,92 +93,70 @@ class Attribute implements GetXmlInterface, LoadFromXmlInterface
     }
 
     /**
-     * @param string[] $values
+     * @param string $name
+     * @return $this|Attribute
      */
-    public function setValues(array $values)
+    public function setName($name)
     {
-        $this->values = $values;
+        $this->name = $name;
+        return $this;
     }
 
     /**
-     * @return string[]
+     * @return string
      */
-    public function getValues()
+    public function getName()
     {
-        return $this->values;
+        return $this->name;
     }
-
 
     /**
-     * @param string $value
+     * @param string $nameFormat
+     * @return $this|Attribute
      */
-    public function addValue($value)
+    public function setNameFormat($nameFormat)
     {
-        $this->values[] = $value;
+        $this->nameFormat = $nameFormat;
+        return $this;
     }
 
-
-    public function getFirstValue()
+    /**
+     * @return string
+     */
+    public function getNameFormat()
     {
-        return $this->values[0];
+        return $this->nameFormat;
     }
+
 
 
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
+     * @param SerializationContext $context
+     * @return void
      */
-    public function getXml(\DOMNode $parent, SerializationContext $context)
+    public function serialize(\DOMNode $parent, SerializationContext $context)
     {
-        $result = $context->getDocument()->createElement('Attribute');
-        $parent->appendChild($result);
+        $result = $this->createElement('Attribute', null, $parent, $context);
 
-        $result->setAttribute('Name', $this->getName());
-        if ($this->getNameFormat()) {
-            $result->setAttribute('NameFormat', $this->getNameFormat());
-        }
-        if ($this->getFriendlyName()) {
-            $result->setAttribute('FriendlyName', $this->getFriendlyName());
-        }
+        $this->attributesToXml(array('Name', 'NameFormat', 'FriendlyName'), $result);
 
-        foreach ($this->getValues() as $v) {
-            $valueNode = $context->getDocument()->createElement('AttributeValue', $v);
-            $result->appendChild($valueNode);
-        }
-
-        return $result;
+        $this->manyElementsToXml($this->attributeValue, $result, $context, 'AttributeValue');
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    public function loadFromXml(\DOMElement $xml)
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
     {
-        if ($xml->localName != 'Attribute' || $xml->namespaceURI != Protocol::NS_ASSERTION) {
-            throw new InvalidXmlException('Expected Attribute element but got '.$xml->localName);
-        }
+        $this->checkXmlNodeName($node, 'Attribute', SamlConstants::NS_ASSERTION);
 
-        if (!$xml->hasAttribute('Name')) {
-            throw new InvalidXmlException('Missing Attribute Name');
-        }
-        $this->setName($xml->getAttribute('Name'));
+        $this->attributesFromXml($node, array('Name', 'NameFormat', 'FriendlyName'));
 
-        if ($xml->hasAttribute('NameFormat')) {
-            $this->setNameFormat($xml->getAttribute('NameFormat'));
-        }
-        if ($xml->hasAttribute('FriendlyName')) {
-            $this->setFriendlyName($xml->getAttribute('FriendlyName'));
-        }
-
-        for ($node = $xml->firstChild; $node !== NULL; $node = $node->nextSibling) {
-            if ($node->localName != 'AttributeValue') {
-                throw new InvalidXmlException('Expected AttributeValue but got '.$node->localName);
-            }
-            $this->addValue($node->textContent);
-        }
+        $this->attributeValue = array();
+        $this->manyElementsFromXml($node, $context, 'AttributeValue', 'saml', null, 'addAttributeValue');
     }
-
 
 }

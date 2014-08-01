@@ -3,156 +3,161 @@
 namespace AerialShip\LightSaml\Model\Protocol;
 
 use AerialShip\LightSaml\Helper;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
 use AerialShip\LightSaml\Model\Assertion\NameID;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\SamlConstants;
+use JMS\Serializer\Annotation as JMS;
 
-
-class LogoutRequest extends AbstractRequest
+class LogoutRequest extends RequestAbstract
 {
-    /** @var int|null */
-    protected $notOnOrAfter;
-
-    /** @var string|null */
+    /**
+     * @var string|null
+     */
     protected $reason;
 
-    /** @var NameID */
+    /**
+     * @var int|null
+     */
+    protected $notOnOrAfter;
+
+    /**
+     * @var NameID
+     */
     protected $nameID;
 
-    /** @var string|null */
+    /**
+     * @var string|null
+     */
     protected $sessionIndex;
 
 
+
+
     /**
-     * @return string
+     * @param \AerialShip\LightSaml\Model\Assertion\NameID $nameID
+     * @return $this|LogoutRequest
      */
-    function getXmlNodeLocalName() {
-        return 'LogoutRequest';
+    public function setNameID(NameID $nameID)
+    {
+        $this->nameID = $nameID;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\NameID
+     */
+    public function getNameID()
+    {
+        return $this->nameID;
+    }
+
+    /**
+     * @param int|null $notOnOrAfter
+     * @return $this|LogoutRequest
+     */
+    public function setNotOnOrAfter($notOnOrAfter)
+    {
+        $this->notOnOrAfter = Helper::getTimestampFromValue($notOnOrAfter);
+        return $this;
+    }
+
+    /**
+     * @return int|null
+     */
+    public function getNotOnOrAfterTimestamp()
+    {
+        return $this->notOnOrAfter;
     }
 
     /**
      * @return string|null
      */
-    function getXmlNodeNamespace() {
-        return Protocol::SAML2;
-    }
-
-    /**
-     * The time at which the request expires, after which the recipient may discard the message.
-     * The time value is encoded in UTC
-     *
-     * @param int|string $notOnOrAfter
-     * @return LogoutRequest
-     * @throws \InvalidArgumentException
-     */
-    public function setNotOnOrAfter($notOnOrAfter){
-        if (is_string($notOnOrAfter)) {
-            $notOnOrAfter = Helper::parseSAMLTime($notOnOrAfter);
-        } else if (!is_int($notOnOrAfter) || $notOnOrAfter < 1) {
-            throw new \InvalidArgumentException();
+    public function getNotOnOrAfterString()
+    {
+        if ($this->notOnOrAfter) {
+            return Helper::time2string($this->notOnOrAfter);
         }
-        $this->notOnOrAfter = $notOnOrAfter;
-        return $this;
+        return null;
     }
 
     /**
-     * @return int
+     * @return \DateTime|null
      */
-    public function getNotOnOrAfter(){
-        return $this->notOnOrAfter;
+    public function getNotOnOrAfterDateTime()
+    {
+        if ($this->notOnOrAfter) {
+            return new \DateTime('@'.$this->notOnOrAfter);
+        }
+        return null;
     }
 
     /**
-     * An indication of the reason for the logout
-     * @param string $reason
-     * @return LogoutRequest
+     * @param null|string $reason
+     * @return $this|LogoutRequest
      */
-    public function setReason($reason){
-        $this->reason = trim($reason);
-        return $this;
-    }
-
-    public function getReason(){
-        return $this->reason;
-    }
-
-    /**
-     * @param NameID $nameId
-     * @return LogoutRequest
-     */
-    public function setNameID(NameID $nameId){
-        $this->nameID = $nameId;
-        return $this;
-    }
-
-    /**
-     * @return null|NameID
-     */
-    public function getNameID(){
-        return $this->nameID;
-    }
-
-    /**
-     * @param string $sessionIndex
-     * @return LogoutRequest
-     */
-    public function setSessionIndex($sessionIndex){
-        $this->sessionIndex = $sessionIndex;
+    public function setReason($reason)
+    {
+        $this->reason = (string)$reason;
         return $this;
     }
 
     /**
      * @return null|string
      */
-    public function getSessionIndex(){
+    public function getReason()
+    {
+        return $this->reason;
+    }
+
+    /**
+     * @param null|string $sessionIndex
+     * @return $this|LogoutRequest
+     */
+    public function setSessionIndex($sessionIndex)
+    {
+        $this->sessionIndex = (string)$sessionIndex;
+        return $this;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getSessionIndex()
+    {
         return $this->sessionIndex;
     }
 
 
-
-    function getXml(\DOMNode $parent, SerializationContext $context)
+    public function serialize(\DOMNode $parent, SerializationContext $context)
     {
-        $result = parent::getXml($parent, $context);
+        $result = $this->createElement('LogoutRequest', SamlConstants::NS_PROTOCOL, $parent, $context);
 
-        if ($this->getNotOnOrAfter()) {
-            $result->setAttribute('NotOnOrAfter', Helper::time2string($this->getNotOnOrAfter()));
-        }
-        if ($this->getReason()) {
-            $result->setAttribute('Reason', $this->getReason());
-        }
-        if ($this->getNameID()) {
-            $result->appendChild($this->getNameID()->getXml($parent, $context));
-        }
-        if ($this->getSessionIndex()) {
-            $sessionIndex = $context->getDocument()->createElementNS(Protocol::SAML2, 'samlp:SessionIndex', $this->getSessionIndex());
-            $result->appendChild($sessionIndex);
-        }
+        parent::serialize($result, $context);
 
-        return $result;
+        $this->attributesToXml(array('Reason', 'NotOnOrAfter'), $result);
+
+        $this->singleElementsToXml(array('NameID', 'SessionIndex'), $result, $context);
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        parent::loadFromXml($xml);
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'LogoutRequest', SamlConstants::NS_PROTOCOL);
 
-        if($xml->hasAttribute('Reason')){
-            $this->setReason($xml->getAttribute('Reason'));
-        }
-        if($xml->hasAttribute('NotOnOrAfter')){
-            $this->setNotOnOrAfter($xml->getAttribute('NotOnOrAfter'));
-        }
-        $this->iterateChildrenElements($xml, function(\DOMElement $node) {
-            if ($node->localName == 'NameID') {
-                $nameID = new NameID();
-                $nameID->loadFromXml($node);
-                $this->setNameID($nameID);
-            }
-            if ($node->localName == 'SessionIndex') {
-                $this->setSessionIndex($node->textContent);
-            }
-        });
+        parent::deserialize($node, $context);
+
+        $this->attributesFromXml($node, array('Reason', 'NotOnOrAfter'));
+
+        $this->singleElementsFromXml($node, $context, array(
+            'NameID' => array('saml', 'AerialShip\LightSaml\Model\Assertion\NameID'),
+            'SessionIndex' => array('saml', null),
+        ));
     }
+
+
 }

@@ -2,136 +2,214 @@
 
 namespace AerialShip\LightSaml\Model\Assertion;
 
-use AerialShip\LightSaml\Error\InvalidXmlException;
 use AerialShip\LightSaml\Helper;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Meta\XmlRequiredAttributesTrait;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
+use AerialShip\LightSaml\SamlConstants;
 
-
-class AuthnStatement implements GetXmlInterface, LoadFromXmlInterface
+class AuthnStatement extends AbstractSamlModel
 {
-    use XmlRequiredAttributesTrait;
-
-
-    /** @var int */
+    /**
+     * @var int|null
+     */
     protected $authnInstant;
 
-    /** @var string */
+    /**
+     * @var int|null
+     */
+    protected $sessionNotOnOrAfter;
+
+    /**
+     * @var string|null
+     */
     protected $sessionIndex;
 
-    /** @var string */
+    /**
+     * @var AuthnContext
+     */
     protected $authnContext;
 
+    /**
+     * @var SubjectLocality
+     */
+    protected $subjectLocality;
 
 
 
     /**
-     * @param string $authnContext
+     * @param \AerialShip\LightSaml\Model\Assertion\AuthnContext $authnContext
+     * @return $this|AuthnStatement
      */
-    public function setAuthnContext($authnContext) {
-        $this->authnContext = trim($authnContext);
+    public function setAuthnContext(AuthnContext $authnContext)
+    {
+        $this->authnContext = $authnContext;
+        return $this;
     }
 
     /**
-     * @return string
+     * @return \AerialShip\LightSaml\Model\Assertion\AuthnContext
      */
-    public function getAuthnContext() {
+    public function getAuthnContext()
+    {
         return $this->authnContext;
     }
 
     /**
-     * @param int|string $authnInstant
-     * @throws \InvalidArgumentException
+     * @param int|string|\DateTime $authnInstant
+     * @return $this|AuthnStatement
      */
-    public function setAuthnInstant($authnInstant) {
-        if (is_string($authnInstant)) {
-            $authnInstant = Helper::parseSAMLTime($authnInstant);
-        } else if (!is_int($authnInstant) || $authnInstant < 1) {
-            throw new \InvalidArgumentException('Invalid AuthnInstant');
-        }
-        $this->authnInstant = $authnInstant;
+    public function setAuthnInstant($authnInstant)
+    {
+        $this->authnInstant = Helper::getTimestampFromValue($authnInstant);
+        return $this;
     }
 
     /**
-     * @return int
+     * @return int|null
      */
-    public function getAuthnInstant() {
+    public function getAuthnInstantTimestamp()
+    {
         return $this->authnInstant;
     }
 
     /**
-     * @param string $sessionIndex
+     * @return string|null
      */
-    public function setSessionIndex($sessionIndex) {
-        $this->sessionIndex = $sessionIndex;
+    public function getAuthnInstantString()
+    {
+        if ($this->authnInstant) {
+            return Helper::time2string($this->authnInstant);
+        }
+        return null;
     }
 
     /**
-     * @return string
+     * @return \DateTime|null
      */
-    public function getSessionIndex() {
+    public function getAuthnInstantDateTime()
+    {
+        if ($this->authnInstant) {
+            return new \DateTime('@'.$this->authnInstant);
+        }
+        return null;
+    }
+
+    /**
+     * @param null|string $sessionIndex
+     * @return $this|AuthnStatement
+     */
+    public function setSessionIndex($sessionIndex)
+    {
+        $this->sessionIndex = $sessionIndex;
+        return $this;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getSessionIndex()
+    {
         return $this->sessionIndex;
     }
 
-
-
-    protected function prepareForXml() {
-        if (!$this->getAuthnInstant()) {
-            $this->setAuthnInstant(time());
-        }
+    /**
+     * @param int|string|\DateTime $sessionNotOnOrAfter
+     * @return $this|AuthnStatement
+     */
+    public function setSessionNotOnOrAfter($sessionNotOnOrAfter)
+    {
+        $this->sessionNotOnOrAfter = Helper::getTimestampFromValue($sessionNotOnOrAfter);
+        return $this;
     }
+
+    /**
+     * @return int|null
+     */
+    public function getSessionNotOnOrAfterTimestamp()
+    {
+        return $this->sessionNotOnOrAfter;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getSessionNotOnOrAfterString()
+    {
+        if ($this->sessionNotOnOrAfter) {
+            return Helper::time2string($this->sessionNotOnOrAfter);
+        }
+        return null;
+    }
+
+    /**
+     * @return \DateTime|null
+     */
+    public function getSessionNotOnOrAfterDateTime()
+    {
+        if ($this->sessionNotOnOrAfter) {
+            return new \DateTime('@'.$this->sessionNotOnOrAfter);
+        }
+        return null;
+    }
+
+    /**
+     * @param \AerialShip\LightSaml\Model\Assertion\SubjectLocality $subjectLocality
+     * @return $this|AuthnStatement
+     */
+    public function setSubjectLocality($subjectLocality)
+    {
+        $this->subjectLocality = $subjectLocality;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\SubjectLocality
+     */
+    public function getSubjectLocality()
+    {
+        return $this->subjectLocality;
+    }
+
 
 
     /**
      * @param \DOMNode $parent
-     * @param \AerialShip\LightSaml\Meta\SerializationContext $context
-     * @return \DOMElement
+     * @param SerializationContext $context
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context) {
-        $result = $context->getDocument()->createElement('AuthnStatement');
-        $parent->appendChild($result);
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        $result = $this->createElement('AuthnStatement', null, $parent, $context);
 
-        $result->setAttribute('AuthnInstant', Helper::time2string($this->getAuthnInstant()));
-        if ($this->getSessionIndex()) {
-            $result->setAttribute('SessionIndex', $this->getSessionIndex());
-        }
+        $this->attributesToXml(
+            array('AuthnInstant', 'SessionNotOnOrAfter'),
+            $result
+        );
 
-        $authnContextNode = $context->getDocument()->createElement('AuthnContext');
-        $result->appendChild($authnContextNode);
-        $refNode = $context->getDocument()->createElement('AuthnContextClassRef', $this->getAuthnContext());
-        $authnContextNode->appendChild($refNode);
-
-        return $result;
+        $this->singleElementsToXml(
+            array('SessionIndex', 'AuthnContext', 'SubjectLocality'),
+            $result,
+            $context
+        );
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        if ($xml->localName != 'AuthnStatement' || $xml->namespaceURI != Protocol::NS_ASSERTION) {
-            throw new InvalidXmlException('Expected AuthnStatement element but got '.$xml->localName);
-        }
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'AuthnStatement', SamlConstants::NS_ASSERTION);
 
-        $this->checkRequiredAttributes($xml, array('AuthnInstant'));
-        $this->setAuthnInstant($xml->getAttribute('AuthnInstant'));
+        $this->attributesFromXml($node, array('AuthnInstant', 'SessionNotOnOrAfter'));
 
-        if ($xml->hasAttribute('SessionIndex')) {
-            $this->setSessionIndex($xml->getAttribute('SessionIndex'));
-        }
-
-        $xpath = new \DOMXPath($xml->ownerDocument);
-        $xpath->registerNamespace('saml', Protocol::NS_ASSERTION);
-        $xpath->registerNamespace('samlp', Protocol::SAML2);
-
-        $list = $xpath->query('./saml:AuthnContext/saml:AuthnContextClassRef', $xml);
-        if ($list->length) {
-            $this->setAuthnContext($list->item(0)->textContent);
-        }
+        $this->singleElementsFromXml($node, $context, array(
+            'SessionIndex' => array('saml', 'AerialShip\LightSaml\Model\Assertion\SessionIndex'),
+            'AuthnContext' => array('saml', 'AerialShip\LightSaml\Model\Assertion\AuthnContext'),
+            'SubjectLocality' => array('saml', 'AerialShip\LightSaml\Model\Assertion\SubjectLocality'),
+        ));
     }
-
 
 }

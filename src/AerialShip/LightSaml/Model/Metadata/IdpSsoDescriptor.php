@@ -2,89 +2,142 @@
 
 namespace AerialShip\LightSaml\Model\Metadata;
 
-use AerialShip\LightSaml\Helper;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
 use AerialShip\LightSaml\Model\Assertion\Attribute;
-use AerialShip\LightSaml\Model\Metadata\Service\AbstractService;
-use AerialShip\LightSaml\Protocol;
-
+use AerialShip\LightSaml\SamlConstants;
 
 class IdpSsoDescriptor extends SSODescriptor
 {
-    /** @var  Attribute[] */
-    protected $attributes = array();
+    /** @var  bool|null */
+    protected $wantAuthnRequestsSigned;
+
+    /** @var  SingleSignOnService[]|null */
+    protected $singleSignOnServices;
+
+    /** @var  Attribute[]|null */
+    protected $attributes;
 
 
 
     /**
-     * @param \AerialShip\LightSaml\Model\Assertion\Attribute[] $attributes
+     * @param bool|null $wantAuthnRequestsSigned
      * @return $this|IdpSsoDescriptor
      */
-    public function setAttributes(array $attributes)
+    public function setWantAuthnRequestsSigned($wantAuthnRequestsSigned)
     {
-        $this->attributes = $attributes;
+        $this->wantAuthnRequestsSigned = $wantAuthnRequestsSigned !== null ? (bool)$wantAuthnRequestsSigned : null;
         return $this;
     }
 
     /**
-     * @return \AerialShip\LightSaml\Model\Assertion\Attribute[]
+     * @return bool|null
      */
-    public function getAttributes()
+    public function getWantAuthnRequestsSigned()
     {
-        return $this->attributes;
+        return $this->wantAuthnRequestsSigned;
     }
 
     /**
-     * @param Attribute $attribute
+     * @param \AerialShip\LightSaml\Model\Metadata\SingleSignOnService $singleSignOnService
+     * @return $this|IdpSsoDescriptor
      */
-    public function addAttribute(Attribute $attribute)
+    public function addSingleSignOnService(SingleSignOnService $singleSignOnService)
     {
-        $this->attributes[] = $attribute;
-    }
-
-
-    /**
-     * @param AbstractService $service
-     * @return SpSsoDescriptor
-     * @throws \InvalidArgumentException
-     */
-    public function addService(AbstractService $service)
-    {
-        $class = Helper::getClassNameOnly($service);
-        if ($class != 'SingleLogoutService' &&
-            $class != 'SingleSignOnService'
-        ) {
-            throw new \InvalidArgumentException("Invalid service type $class for IDPSSODescriptor");
+        if (false == is_array($this->singleSignOnServices)) {
+            $this->singleSignOnServices = array();
         }
-        return parent::addService($service);
+        $this->singleSignOnServices[] = $singleSignOnService;
+
+        return $this;
     }
 
-
     /**
-     * @return string
+     * @return \AerialShip\LightSaml\Model\Metadata\SingleSignOnService[]|null
      */
-    public function getXmlNodeName()
+    public function getAllSingleSignOnServices()
     {
-        return 'IDPSSODescriptor';
+        return $this->singleSignOnServices;
     }
 
-
     /**
-     * @param \DOMNode $parent
-     * @param SerializationContext $context
-     * @return \DOMElement
+     * @param string $binding
+     * @return \AerialShip\LightSaml\Model\Metadata\SingleSignOnService[]
      */
-    public function getXml(\DOMNode $parent, SerializationContext $context)
+    public function getAllSingleSignOnServicesByBinding($binding)
     {
-        $result = parent::getXml($parent, $context);
-
-        if ($this->getAttributes()) {
-            foreach ($this->getAttributes() as $attribute) {
-                $attribute->getXml($result, $context);
+        $result = array();
+        foreach ($this->getAllSingleSignOnServices() as $svc) {
+            if ($svc->getBinding() == $binding) {
+                $result[] = $svc;
             }
         }
 
         return $result;
+    }
+
+    /**
+     * @param \AerialShip\LightSaml\Model\Assertion\Attribute $attribute
+     * @return $this|IdpSsoDescriptor
+     */
+    public function addAttribute(Attribute $attribute)
+    {
+        if (false == is_array($this->attributes)) {
+            $this->attributes = array();
+        }
+        $this->attributes[] = $attribute;
+        return $this;
+    }
+
+    /**
+     * @return \AerialShip\LightSaml\Model\Assertion\Attribute[]|null
+     */
+    public function getAllAttributes()
+    {
+        return $this->attributes;
+    }
+
+
+    public function serialize(\DOMNode $parent, SerializationContext $context)
+    {
+        $result = $this->createElement('IDPSSODescriptor', null, $parent, $context);
+
+        parent::serialize($result, $context);
+
+        $this->attributesToXml(array('WantAuthnRequestsSigned'), $result);
+
+        if ($this->getAllSingleSignOnServices()) {
+            foreach ($this->getAllSingleSignOnServices() as $object) {
+                $object->serialize($result, $context);
+            }
+        }
+        if ($this->getAllAttributes()) {
+            foreach ($this->getAllAttributes() as $object) {
+                $object->serialize($result, $context);
+            }
+        }
+    }
+
+    /**
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
+     */
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'IDPSSODescriptor', SamlConstants::NS_METADATA);
+
+        parent::deserialize($node, $context);
+
+        $this->attributesFromXml($node, array('WantAuthnRequestsSigned'));
+
+        $this->singleSignOnServices = array();
+        $this->manyElementsFromXml($node, $context, 'SingleSignOnService', 'md',
+            'AerialShip\LightSaml\Model\Metadata\SingleSignOnService', 'addSingleSignOnService');
+
+        $this->attributes = array();
+        $this->manyElementsFromXml($node, $context, 'SingleSignOnService', 'saml',
+            'AerialShip\LightSaml\Model\Assertion\Attribute', 'addAttribute');
     }
 
 

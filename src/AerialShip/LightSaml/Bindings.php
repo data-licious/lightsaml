@@ -32,7 +32,8 @@ final class Bindings
 
     private static $_constants = null;
 
-    private static function getConstants() {
+    private static function getConstants()
+    {
         if (self::$_constants === null) {
             $ref = new \ReflectionClass('\AerialShip\LightSaml\Bindings');
             self::$_constants = $ref->getConstants();
@@ -44,14 +45,16 @@ final class Bindings
      * @param string $binding
      * @return bool
      */
-    static function isValid($binding) {
+    public static function isValid($binding)
+    {
         $result = in_array($binding, self::getConstants());
         return $result;
     }
 
 
-    static function validate($binding) {
-        if (!self::isValid($binding)) {
+    public static function validate($binding)
+    {
+        if (false == self::isValid($binding)) {
             throw new InvalidBindingException($binding);
         }
     }
@@ -61,7 +64,8 @@ final class Bindings
      * @param string $binding   one of \AerialShip\LightSaml\Bindings
      * @return string  one of \AerialShip\LightSaml\Protocol::* constants
      */
-    static function getBindingProtocol($binding) {
+    public static function getBindingProtocol($binding)
+    {
         $result = @self::$_binding2protocol[$binding];
         return $result;
     }

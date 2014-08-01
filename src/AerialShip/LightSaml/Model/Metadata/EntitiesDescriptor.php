@@ -2,21 +2,15 @@
 
 namespace AerialShip\LightSaml\Model\Metadata;
 
-use AerialShip\LightSaml\Error\InvalidXmlException;
 use AerialShip\LightSaml\Helper;
-use AerialShip\LightSaml\Meta\GetXmlInterface;
-use AerialShip\LightSaml\Meta\LoadFromXmlInterface;
+use AerialShip\LightSaml\Meta\DeserializationContext;
 use AerialShip\LightSaml\Meta\SerializationContext;
-use AerialShip\LightSaml\Meta\XmlChildrenLoaderTrait;
+use AerialShip\LightSaml\Model\AbstractSamlModel;
 use AerialShip\LightSaml\Model\XmlDSig\Signature;
-use AerialShip\LightSaml\Model\XmlDSig\SignatureCreator;
-use AerialShip\LightSaml\Protocol;
+use AerialShip\LightSaml\SamlConstants;
 
-class EntitiesDescriptor implements GetXmlInterface, LoadFromXmlInterface
+class EntitiesDescriptor extends AbstractSamlModel
 {
-    use XmlChildrenLoaderTrait;
-
-
     /** @var  int */
     protected $validUntil;
 
@@ -38,87 +32,127 @@ class EntitiesDescriptor implements GetXmlInterface, LoadFromXmlInterface
 
     /**
      * @param string $cacheDuration
+     * @return $this|EntitiesDescriptor
      * @throws \InvalidArgumentException
      */
-    public function setCacheDuration($cacheDuration) {
-        try {
-            new \DateInterval($cacheDuration);
-        } catch (\Exception $ex) {
-            throw new \InvalidArgumentException('Invalid duration format', 0, $ex);
+    public function setCacheDuration($cacheDuration)
+    {
+        if ($cacheDuration) {
+            try {
+                new \DateInterval((string)$cacheDuration);
+            } catch (\Exception $ex) {
+                throw new \InvalidArgumentException('Invalid duration format', 0, $ex);
+            }
         }
         $this->cacheDuration = $cacheDuration;
+
+        return $this;
     }
 
     /**
      * @return string
      */
-    public function getCacheDuration() {
+    public function getCacheDuration()
+    {
         return $this->cacheDuration;
     }
 
     /**
      * @param string $id
+     * @return $this|EntitiesDescriptor
      */
-    public function setId($id) {
-        $this->id = $id;
+    public function setID($id)
+    {
+        $this->id = (string)$id;
+
+        return $this;
     }
 
     /**
      * @return string
      */
-    public function getId() {
+    public function getID()
+    {
         return $this->id;
     }
 
     /**
      * @param string $name
+     * @return $this|EntitiesDescriptor
      */
-    public function setName($name) {
-        $this->name = $name;
+    public function setName($name)
+    {
+        $this->name = (string)$name;
+
+        return $this;
     }
 
     /**
      * @return string
      */
-    public function getName() {
+    public function getName()
+    {
         return $this->name;
     }
 
     /**
      * @param \AerialShip\LightSaml\Model\XmlDSig\Signature $signature
+     * @return $this|EntitiesDescriptor
      */
-    public function setSignature(Signature $signature) {
+    public function setSignature(Signature $signature)
+    {
         $this->signature = $signature;
+        return $this;
     }
 
     /**
      * @return \AerialShip\LightSaml\Model\XmlDSig\Signature
      */
-    public function getSignature() {
+    public function getSignature()
+    {
         return $this->signature;
     }
 
     /**
      * @param int|string $validUntil
+     * @return $this|EntitiesDescriptor
      * @throws \InvalidArgumentException
      */
-    public function setValidUntil($validUntil) {
-        if (is_string($validUntil)) {
-            $validUntil = Helper::parseSAMLTime($validUntil);
-        } else if (!is_int($validUntil) || $validUntil < 1) {
-            throw new \InvalidArgumentException('Invalid validUntil');
+    public function setValidUntil($validUntil)
+    {
+        $this->validUntil = Helper::getTimestampFromValue($validUntil);
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getValidUntilString()
+    {
+        if ($this->validUntil) {
+            return Helper::time2string($this->validUntil);
         }
-        $this->validUntil = $validUntil;
+        return null;
     }
 
     /**
      * @return int
      */
-    public function getValidUntil() {
+    public function getValidUntilTimestamp()
+    {
         return $this->validUntil;
     }
 
-
+    /**
+     * @return \DateTime|null
+     */
+    public function getValidUntilDateTime()
+    {
+        if ($this->validUntil) {
+            return new \DateTime('@'.$this->validUntil);
+        }
+        return null;
+    }
 
 
 
@@ -129,7 +163,7 @@ class EntitiesDescriptor implements GetXmlInterface, LoadFromXmlInterface
      */
     public function addItem($item)
     {
-        if (!($item instanceof EntitiesDescriptor) && !($item instanceof EntityDescriptor)) {
+        if (false == $item instanceof EntitiesDescriptor && false == $item instanceof EntityDescriptor) {
             throw new \InvalidArgumentException('Expected EntitiesDescriptor or EntityDescriptor');
         }
         if ($item === $this) {
@@ -150,24 +184,25 @@ class EntitiesDescriptor implements GetXmlInterface, LoadFromXmlInterface
      * @return bool
      * @throws \InvalidArgumentException
      */
-    public function containsItem($item) {
-        $result = false;
-        if (!($item instanceof EntitiesDescriptor) && !($item instanceof EntityDescriptor)) {
+    public function containsItem($item)
+    {
+        if (false == $item instanceof EntitiesDescriptor && false == $item instanceof EntityDescriptor) {
             throw new \InvalidArgumentException('Expected EntitiesDescriptor or EntityDescriptor');
         }
         foreach ($this->items as $i) {
             if ($i === $item) {
-                $result = true;
-                break;
+
+                return true;
             }
             if ($i instanceof EntitiesDescriptor) {
                 if ($i->containsItem($item)) {
-                    $result = true;
-                    break;
+
+                    return true;
                 }
             }
         }
-        return $result;
+
+        return false;
     }
 
     /**
@@ -210,88 +245,43 @@ class EntitiesDescriptor implements GetXmlInterface, LoadFromXmlInterface
         return null;
     }
 
+
+
     /**
      * @param \DOMNode $parent
      * @param SerializationContext $context
-     * @throws \RuntimeException
-     * @return \DOMElement
+     * @return void
      */
-    function getXml(\DOMNode $parent, SerializationContext $context)
+    public function serialize(\DOMNode $parent, SerializationContext $context)
     {
-        $result = $context->getDocument()->createElementNS(Protocol::NS_METADATA, 'md:EntitiesDescriptor');
-        $parent->appendChild($result);
+        $result = $this->createElement('EntitiesDescriptor', SamlConstants::NS_METADATA, $parent, $context);
 
-        if ($this->getValidUntil()) {
-            $result->setAttribute('validUntil', Helper::time2string($this->getValidUntil()));
-        }
-        if ($this->getCacheDuration()) {
-            $result->setAttribute('cacheDuration', $this->getCacheDuration());
-        }
-        if ($this->getId()) {
-            $result->setAttribute('ID', $this->getId());
-        }
-        if ($this->getName()) {
-            $result->setAttribute('Name', $this->getName());
-        }
+        $this->attributesToXml(array('validUntil', 'cacheDuration', 'ID', 'Name'), $result);
 
-        if ($signature = $this->getSignature()) {
-            if ($signature instanceof SignatureCreator) {
-                $signature->getXml($result, $context);
-            } else {
-                throw new \RuntimeException('Signature must be SignatureCreator');
-            }
-        }
+        $this->singleElementsToXml(array('Signature'), $result, $context);
 
-        foreach ($this->items as $item) {
-            $item->getXml($result, $context);
-        }
-
-        return $result;
+        $this->manyElementsToXml($this->getAllItems(), $result, $context);
     }
 
     /**
-     * @param \DOMElement $xml
-     * @throws \AerialShip\LightSaml\Error\InvalidXmlException
+     * @param \DOMElement $node
+     * @param \AerialShip\LightSaml\Meta\DeserializationContext $context
+     * @return void
      */
-    function loadFromXml(\DOMElement $xml) {
-        if ($xml->localName != 'EntitiesDescriptor' || $xml->namespaceURI != Protocol::NS_METADATA) {
-            throw new InvalidXmlException('Expected EntitiesDescriptor element and '.Protocol::NS_METADATA.' namespace but got '.$xml->localName);
-        }
+    public function deserialize(\DOMElement $node, DeserializationContext $context)
+    {
+        $this->checkXmlNodeName($node, 'EntitiesDescriptor', SamlConstants::NS_METADATA);
 
-        if ($xml->hasAttribute('validUntil')) {
-            $this->setValidUntil(Helper::parseSAMLTime($xml->getAttribute('validUntil')));
-        }
-        if ($xml->hasAttribute('cacheDuration')) {
-            $this->setCacheDuration($xml->getAttribute('cacheDuration'));
-        }
-        if ($xml->hasAttribute('ID')) {
-            $this->setId($xml->getAttribute('ID'));
-        }
-        if ($xml->hasAttribute('Name')) {
-            $this->setName($xml->getAttribute('Name'));
-        }
+        $this->attributesFromXml($node, array('validUntil', 'cacheDuration', 'ID', 'Name'));
 
-        $this->items = array();
-        $this->loadXmlChildren(
-            $xml,
-            array(
-                array(
-                    'node' => array('name'=>'EntitiesDescriptor', 'ns'=>Protocol::NS_METADATA),
-                    'class' => '\AerialShip\LightSaml\Model\Metadata\EntitiesDescriptor'
-                ),
-                array(
-                    'node' => array('name'=>'EntityDescriptor', 'ns'=>Protocol::NS_METADATA),
-                    'class' => '\AerialShip\LightSaml\Model\Metadata\EntityDescriptor'
-                ),
-            ),
-            function(LoadFromXmlInterface $obj) {
-                $this->addItem($obj);
-            }
-        );
+        $this->singleElementsFromXml($node, $context, array(
+            'Signature' => array('ds', 'AerialShip\LightSaml\Model\XmlDSig\Signature'),
+        ));
 
-        if (empty($this->items)) {
-            throw new InvalidXmlException('Expected at least one of EntityDescriptor or EntitiesDescriptor');
-        }
+        $this->manyElementsFromXml($node, $context, 'EntitiesDescriptor', 'md',
+            'AerialShip\LightSaml\Model\Metadata\EntitiesDescriptor', 'addItem');
+        $this->manyElementsFromXml($node, $context, 'EntityDescriptor', 'md',
+            'AerialShip\LightSaml\Model\Metadata\EntityDescriptor', 'addItem');
     }
 
-} 
+}
